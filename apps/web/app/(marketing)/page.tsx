@@ -23,19 +23,19 @@ function Home() {
         <Hero
           pill={
             <Pill label={'New'}>
-              <span>The leading SaaS Starter Kit for ambitious developers</span>
+              <span>Uptime monitoring platform by Flinkeo</span>
             </Pill>
           }
           title={
             <>
-              <span>The ultimate SaaS Starter</span>
-              <span>for your next project</span>
+              <span>Monitor your services</span>
+              <span>with Uptime by Flinkeo</span>
             </>
           }
           subtitle={
             <span>
-              Build and Ship a SaaS faster than ever before with the next-gen
-              SaaS Starter Kit. Ship your SaaS in days, not months.
+              Track availability, reduce downtime, and manage service status
+              from one clean dashboard.
             </span>
           }
           cta={<MainCallToActionButton />}
@@ -62,12 +62,12 @@ function Home() {
             heading={
               <>
                 <b className="font-semibold dark:text-white">
-                  The ultimate SaaS Starter Kit
+                  Built for reliable operations
                 </b>
                 .{' '}
                 <span className="text-muted-foreground font-normal">
-                  Unleash your creativity and build your SaaS faster than ever
-                  with Makerkit.
+                  Uptime gives your team clear visibility into service health
+                  and account activity.
                 </span>
               </>
             }
@@ -82,7 +82,7 @@ function Home() {
               <FeatureCard
                 className={'relative col-span-2 overflow-hidden'}
                 label={'Beautiful Dashboard'}
-                description={`Makerkit provides a beautiful dashboard to manage your SaaS business.`}
+                description={`Uptime provides a clean dashboard to monitor your services.`}
               />
 
               <FeatureCard
@@ -90,19 +90,19 @@ function Home() {
                   'relative col-span-2 w-full overflow-hidden lg:col-span-1'
                 }
                 label={'Authentication'}
-                description={`Makerkit provides a variety of providers to allow your users to sign in.`}
+                description={`Uptime supports secure sign-in options for your team.`}
               />
 
               <FeatureCard
                 className={'relative col-span-2 overflow-hidden lg:col-span-1'}
                 label={'Multi Tenancy'}
-                description={`Multi tenant memberships for your SaaS business.`}
+                description={`Manage multiple workspaces from a single account.`}
               />
 
               <FeatureCard
                 className={'relative col-span-2 overflow-hidden'}
                 label={'Billing'}
-                description={`Makerkit supports multiple payment gateways to charge your customers.`}
+                description={`Connect billing flows for subscriptions and service plans.`}
               />
             </FeatureGrid>
           </FeatureShowcase>

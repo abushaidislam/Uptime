@@ -1,19 +1,19 @@
-![Uptime - Next.js Supabase SaaS Starter Kit \[Lite version\]](apps/web/public/images/makerkit.webp)
+![Uptime by Flinkeo - Monitoring Platform](apps/web/public/images/makerkit.webp)
 
-# NEW! Next.js Supabase SaaS Starter Kit (Lite)
+# Uptime by Flinkeo
 
-Start building your SaaS faster with our Next.js 15 + Supabase starter kit.
+Uptime is Flinkeo's uptime and monitoring web platform, built with Next.js 15 and Supabase.
 
-👉 **Looking for a full-featured SaaS Starter Kit?** [Check out the complete version](https://flinkeo.online)
+👉 **Official Website:** [flinkeo.online](https://flinkeo.online)
 
-⭐️ **Why Developers Trust Uptime:**
+⭐️ **Why Teams Trust Uptime:**
 - Production-grade architecture decisions
 - Comprehensive TypeScript setup
 - Modern stack: Next.js 15, Supabase, TailwindCSS v4
 - Quality Code tooling: ESLint v9, Prettier, strict TypeScript, etc.
 - Regular updates and active maintenance
 
-PS: the documentation for this kit is still being updated, so please check back later for more details.
+PS: the documentation for this platform is still being updated, so please check back later for more details.
 
 ## What's Included
 
@@ -33,7 +33,7 @@ PS: the documentation for this kit is still being updated, so please check back 
 
 ### Technologies
 
-This starter kit provides core foundations:
+This platform is powered by:
 
 🛠️ **Technology Stack**:
 - [Next.js 15](https://nextjs.org/): A React-based framework for server-side rendering and static site generation.
@@ -48,17 +48,17 @@ This starter kit provides core foundations:
 - [Eslint](https://eslint.org/): A powerful linting tool for JavaScript and TypeScript.
 - [Playwright](https://playwright.dev/): A framework for end-to-end testing of web applications.
 
-This kit is a trimmed down version of the [full version of this SaaS Starter Kit](https://flinkeo.online). It is a good way to evaluate small part of the full kit, or to simply use it as a base for your own project.
+This repository powers the Uptime web application for Flinkeo.
 
-## Comparing Lite vs Full Version
+## Platform Highlights
 
-The lite kit is perfect for:
-- Evaluating our code architecture and patterns
-- Building basic SaaS prototypes
-- Learning our tech stack approach
-- Building a basic SaaS tool
+Uptime helps teams:
+- Monitor service health and uptime
+- Manage user access and account settings
+- Use secure authentication and protected routes
+- Scale on a modern Next.js + Supabase stack
 
-The [full version](https://flinkeo.online) adds production features:
+Core capabilities include:
 - 💳 Complete billing and subscription system
 - 👥 Team accounts and management
 - 📧 Mailers and Email Templates (Nodemailer, Resend, etc.)
@@ -77,7 +77,7 @@ The [full version](https://flinkeo.online) adds production features:
 - 💪 Active community members
 - 🏢 Powers startups to enterprises
 
-[View complete feature comparison →](https://flinkeo.online/#pricing)
+[Learn more](https://flinkeo.online)
 
 ## Getting Started
 
@@ -209,20 +209,20 @@ Here are the available variables:
 
 | Variable Name | Description | Default Value |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | The URL of your SaaS application | `http://localhost:3000` |
-| `NEXT_PUBLIC_PRODUCT_NAME` | The name of your SaaS product | `Uptime` |
-| `NEXT_PUBLIC_SITE_TITLE` | The title of your SaaS product | `Uptime - The easiest way to build and manage your SaaS` |
-| `NEXT_PUBLIC_SITE_DESCRIPTION` | The description of your SaaS product | `Uptime is the easiest way to build and manage your SaaS. It provides you with the tools you need to build your SaaS, without the hassle of building it from scratch.` |
-| `NEXT_PUBLIC_DEFAULT_THEME_MODE` | The default theme mode of your SaaS product | `light` |
-| `NEXT_PUBLIC_THEME_COLOR` | The default theme color of your SaaS product | `#ffffff` |
-| `NEXT_PUBLIC_THEME_COLOR_DARK` | The default theme color of your SaaS product in dark mode | `#0a0a0a` |
+| `NEXT_PUBLIC_SITE_URL` | The URL of your web application | `http://localhost:3000` |
+| `NEXT_PUBLIC_PRODUCT_NAME` | The name of your product | `Uptime` |
+| `NEXT_PUBLIC_SITE_TITLE` | The website title | `Uptime by Flinkeo` |
+| `NEXT_PUBLIC_SITE_DESCRIPTION` | The website meta description | `Uptime is Flinkeo's web platform for uptime monitoring and service visibility.` |
+| `NEXT_PUBLIC_DEFAULT_THEME_MODE` | The default theme mode | `light` |
+| `NEXT_PUBLIC_THEME_COLOR` | The default theme color | `#ffffff` |
+| `NEXT_PUBLIC_THEME_COLOR_DARK` | The default dark-mode theme color | `#0a0a0a` |
 | `NEXT_PUBLIC_SUPABASE_URL` | The URL of your Supabase project | `http://127.0.0.1:54321` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The anon key of your Supabase project | ''
 | `SUPABASE_SERVICE_ROLE_KEY` | The service role key of your Supabase project | ''
 
 ## Architecture
 
-This starter kit uses a monorepo architecture.
+This project uses a monorepo architecture.
 
 1. The `apps/web` directory is the Next.js application.
 2. The `packages` directory contains all the packages used by the application.
@@ -233,7 +233,7 @@ For more information about the architecture, please refer to the [Uptime blog po
 
 ### Marketing Pages
 
-Marketing pages are located in the `apps/web/app/(marketing)` directory. These pages are used to showcase the features of the SaaS and provide information about the product.
+Marketing pages are located in the `apps/web/app/(marketing)` directory. These pages are used to showcase platform features and provide information about Uptime.
 
 ### Authentication
 
@@ -243,7 +243,7 @@ This package can be used across multiple applications.
 
 ### Gated Pages
 
-Gated pages are located in the `apps/web/app/home` directory. Here is where you can build your SaaS pages that are gated by authentication.
+Gated pages are located in the `apps/web/app/home` directory. Here is where you can build authenticated pages for Uptime users.
 
 ### Database
 
@@ -342,6 +342,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Support
 
-No support is provided for this kit. Feel free to open an issue if you have any questions or need help, but there is no guaranteed response time, nor guarantee a fix.
+No dedicated support SLA is provided for this repository. Feel free to open an issue if you have questions or need help.
 
-For dedicated support, priority fixes, and advanced features, [check out our full version](https://flinkeo.online).
+For product information and updates, visit [flinkeo.online](https://flinkeo.online).
