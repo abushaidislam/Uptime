@@ -59,6 +59,9 @@ importers:
       '@kit/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@kit/monitoring-worker':
+        specifier: workspace:*
+        version: link:../../packages/monitoring-worker
       '@kit/next':
         specifier: workspace:*
         version: link:../../packages/next
@@ -2477,6 +2480,7 @@ packages:
   basic-ftp@5.0.5:
     resolution: {integrity: sha512-4Bcg1P8xhUuqcii/S0Z9wiHIrQVPMermM1any+MX5GeGD7faD3/msQUDGLol9wOcz4/jbg/WJnGqoJF6LiBdtg==}
     engines: {node: '>=10.0.0'}
+    deprecated: Security vulnerability fixed in 5.2.0, please upgrade
 
   bin-links@5.0.0:
     resolution: {integrity: sha512-sdleLVfCjBtgO5cNjA2HVRvWBJAHs4zwenaCPMNJAJU0yNxpzj80IpjOIimkpkr+mhlA+how5poQtt53PygbHA==}

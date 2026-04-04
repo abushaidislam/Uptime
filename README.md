@@ -328,10 +328,6 @@ export const runtime = 'edge';
 
 Remember to enable Node.js compatibility in the Cloudflare dashboard.
 
-## Deployment Options
-
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/9r-iFh?referralCode=RmCO-Z&utm_medium=integration&utm_source=template&utm_campaign=generic)
-
 ## Contributing
 
 Contributions for bug fixed are welcome! However, please open an issue first to discuss your ideas before making a pull request.
@@ -345,3 +341,16 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 No dedicated support SLA is provided for this repository. Feel free to open an issue if you have questions or need help.
 
 For product information and updates, visit [flinkeo.online](https://flinkeo.online).
+
+
+
+
+
+Both services are now running:
+
+Service	URL
+Web App	http://localhost:3000
+Supabase API	http://127.0.0.1:54321
+Supabase Studio	http://127.0.0.1:54323
+Mailpit (email testing)	http://127.0.0.1:54324
+Database: postgresql://postgres:postgres@127.0.0.1:54322/postgres

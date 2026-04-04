@@ -8,6 +8,7 @@ const INTERNAL_PACKAGES = [
   '@kit/accounts',
   '@kit/shared',
   '@kit/supabase',
+  '@kit/monitoring-worker',
   '@kit/i18n',
   '@kit/next',
 ];

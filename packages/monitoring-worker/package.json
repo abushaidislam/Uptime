@@ -3,10 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "exports": {
+    ".": "./src/monitoring-service.ts",
+    "./monitoring": "./src/monitoring-service.ts",
+    "./types": "./src/types.ts"
+  },
   "scripts": {
     "clean": "git clean -xdf .turbo node_modules dist",
     "format": "prettier --check \"**/*.{ts,tsx}\"",
     "lint": "eslint .",
+    "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "start": "node dist/worker.js",

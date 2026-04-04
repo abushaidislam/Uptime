@@ -6,7 +6,9 @@
       "~/*": ["./app/*"],
       "~/config/*": ["./config/*"],
       "~/components/*": ["./components/*"],
-      "~/lib/*": ["./lib/*"]
+      "~/lib/*": ["./lib/*"],
+      "@kit/monitoring-worker": ["../../packages/monitoring-worker/src/monitoring-service.ts"],
+      "@kit/monitoring-worker/*": ["../../packages/monitoring-worker/src/*"]
     },
     "plugins": [
       {
