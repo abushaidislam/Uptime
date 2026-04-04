@@ -1,4 +1,15 @@
-import { Home, User } from 'lucide-react';
+import { 
+  Home, 
+  User, 
+  Activity, 
+  AlertTriangle, 
+  Bell, 
+  Globe, 
+  BarChart3, 
+  Settings,
+  Shield,
+  Zap,
+} from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -9,13 +20,38 @@ const iconClasses = 'w-4';
 
 const routes = [
   {
-    label: 'common:routes.application',
+    label: 'common:routes.dashboard',
     children: [
       {
-        label: 'common:routes.home',
-        path: pathsConfig.app.home,
+        label: 'Overview',
+        path: '/home',
         Icon: <Home className={iconClasses} />,
         end: true,
+      },
+      {
+        label: 'Monitors',
+        path: '/home/monitors',
+        Icon: <Activity className={iconClasses} />,
+      },
+      {
+        label: 'Incidents',
+        path: '/home/incidents',
+        Icon: <AlertTriangle className={iconClasses} />,
+      },
+      {
+        label: 'Alerts',
+        path: '/home/alerts',
+        Icon: <Bell className={iconClasses} />,
+      },
+      {
+        label: 'Status Page',
+        path: '/home/status-page',
+        Icon: <Globe className={iconClasses} />,
+      },
+      {
+        label: 'Analytics',
+        path: '/home/analytics',
+        Icon: <BarChart3 className={iconClasses} />,
       },
     ],
   },
@@ -26,6 +62,21 @@ const routes = [
         label: 'common:routes.profile',
         path: pathsConfig.app.profileSettings,
         Icon: <User className={iconClasses} />,
+      },
+      {
+        label: 'Notifications',
+        path: '/home/settings/notifications',
+        Icon: <Bell className={iconClasses} />,
+      },
+      {
+        label: 'SSL Certificates',
+        path: '/home/settings/ssl',
+        Icon: <Shield className={iconClasses} />,
+      },
+      {
+        label: 'Integrations',
+        path: '/home/settings/integrations',
+        Icon: <Zap className={iconClasses} />,
       },
     ],
   },
