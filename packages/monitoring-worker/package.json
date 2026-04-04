@@ -3,10 +3,19 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "./dist/monitoring-service.js",
+  "types": "./dist/monitoring-service.d.ts",
   "exports": {
-    ".": "./src/monitoring-service.ts",
-    "./monitoring": "./src/monitoring-service.ts",
-    "./types": "./src/types.ts"
+    ".": "./dist/monitoring-service.js",
+    "./monitoring": "./dist/monitoring-service.js",
+    "./types": "./dist/types.d.ts"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "dist/*"
+      ]
+    }
   },
   "scripts": {
     "clean": "git clean -xdf .turbo node_modules dist",

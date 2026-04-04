@@ -7,8 +7,8 @@
       "~/config/*": ["./config/*"],
       "~/components/*": ["./components/*"],
       "~/lib/*": ["./lib/*"],
-      "@kit/monitoring-worker": ["../../packages/monitoring-worker/src/monitoring-service.ts"],
-      "@kit/monitoring-worker/*": ["../../packages/monitoring-worker/src/*"]
+      "@kit/monitoring-worker": ["../../packages/monitoring-worker/dist/monitoring-service.d.ts"],
+      "@kit/monitoring-worker/*": ["../../packages/monitoring-worker/dist/*"]
     },
     "plugins": [
       {
