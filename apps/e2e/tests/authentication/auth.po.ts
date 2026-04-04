@@ -12,7 +12,7 @@ export class AuthPageObject {
   }
 
   goToSignIn() {
-    return this.page.goto('/auth/sign-in');
+    return this.page.goto('/auth/sign-in', { waitUntil: 'domcontentloaded' });
   }
 
   goToSignUp() {
