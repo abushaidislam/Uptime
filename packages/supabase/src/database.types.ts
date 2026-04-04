@@ -70,6 +70,345 @@ export type Database = {
         };
         Relationships: [];
       };
+      monitors: {
+        Row: {
+          id: string;
+          name: string;
+          url: string;
+          type: string;
+          status: string;
+          interval: number;
+          timeout: number;
+          expected_status: number | null;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+          team_id: string | null;
+          last_checked_at: string | null;
+          last_response_time: number | null;
+          uptime_24h: number | null;
+          uptime_7d: number | null;
+          uptime_30d: number | null;
+          ssl_expiry_date: string | null;
+          notifications_enabled: boolean | null;
+          notification_channels: Json | null;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          url: string;
+          type: string;
+          status?: string;
+          interval?: number;
+          timeout?: number;
+          expected_status?: number | null;
+          created_at?: string;
+          updated_at?: string;
+          user_id: string;
+          team_id?: string | null;
+          last_checked_at?: string | null;
+          last_response_time?: number | null;
+          uptime_24h?: number | null;
+          uptime_7d?: number | null;
+          uptime_30d?: number | null;
+          ssl_expiry_date?: string | null;
+          notifications_enabled?: boolean | null;
+          notification_channels?: Json | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          url?: string;
+          type?: string;
+          status?: string;
+          interval?: number;
+          timeout?: number;
+          expected_status?: number | null;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+          team_id?: string | null;
+          last_checked_at?: string | null;
+          last_response_time?: number | null;
+          uptime_24h?: number | null;
+          uptime_7d?: number | null;
+          uptime_30d?: number | null;
+          ssl_expiry_date?: string | null;
+          notifications_enabled?: boolean | null;
+          notification_channels?: Json | null;
+        };
+        Relationships: [];
+      };
+      health_checks: {
+        Row: {
+          id: string;
+          monitor_id: string;
+          status: string;
+          response_time: number;
+          status_code: number | null;
+          timestamp: string;
+          error: string | null;
+          location: string;
+        };
+        Insert: {
+          id?: string;
+          monitor_id: string;
+          status: string;
+          response_time: number;
+          status_code?: number | null;
+          timestamp?: string;
+          error?: string | null;
+          location?: string;
+        };
+        Update: {
+          id?: string;
+          monitor_id?: string;
+          status?: string;
+          response_time?: number;
+          status_code?: number | null;
+          timestamp?: string;
+          error?: string | null;
+          location?: string;
+        };
+        Relationships: [];
+      };
+      incidents: {
+        Row: {
+          id: string;
+          monitor_id: string;
+          title: string;
+          description: string | null;
+          status: string;
+          severity: string;
+          started_at: string;
+          resolved_at: string | null;
+          acknowledged_at: string | null;
+          acknowledged_by: string | null;
+          root_cause: string | null;
+          affected_monitors: string[] | null;
+        };
+        Insert: {
+          id?: string;
+          monitor_id: string;
+          title: string;
+          description?: string | null;
+          status?: string;
+          severity: string;
+          started_at?: string;
+          resolved_at?: string | null;
+          acknowledged_at?: string | null;
+          acknowledged_by?: string | null;
+          root_cause?: string | null;
+          affected_monitors?: string[] | null;
+        };
+        Update: {
+          id?: string;
+          monitor_id?: string;
+          title?: string;
+          description?: string | null;
+          status?: string;
+          severity?: string;
+          started_at?: string;
+          resolved_at?: string | null;
+          acknowledged_at?: string | null;
+          acknowledged_by?: string | null;
+          root_cause?: string | null;
+          affected_monitors?: string[] | null;
+        };
+        Relationships: [];
+      };
+      incident_updates: {
+        Row: {
+          id: string;
+          incident_id: string;
+          message: string;
+          status: string;
+          created_at: string;
+          created_by: string;
+        };
+        Insert: {
+          id?: string;
+          incident_id: string;
+          message: string;
+          status: string;
+          created_at?: string;
+          created_by: string;
+        };
+        Update: {
+          id?: string;
+          incident_id?: string;
+          message?: string;
+          status?: string;
+          created_at?: string;
+          created_by?: string;
+        };
+        Relationships: [];
+      };
+      alerts: {
+        Row: {
+          id: string;
+          monitor_id: string;
+          incident_id: string | null;
+          type: string;
+          severity: string;
+          status: string;
+          message: string;
+          created_at: string;
+          acknowledged_at: string | null;
+          acknowledged_by: string | null;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          monitor_id: string;
+          incident_id?: string | null;
+          type: string;
+          severity: string;
+          status?: string;
+          message: string;
+          created_at?: string;
+          acknowledged_at?: string | null;
+          acknowledged_by?: string | null;
+          resolved_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          monitor_id?: string;
+          incident_id?: string | null;
+          type?: string;
+          severity?: string;
+          status?: string;
+          message?: string;
+          created_at?: string;
+          acknowledged_at?: string | null;
+          acknowledged_by?: string | null;
+          resolved_at?: string | null;
+        };
+        Relationships: [];
+      };
+      teams: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          created_at: string;
+          owner_id: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          created_at?: string;
+          owner_id: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          created_at?: string;
+          owner_id?: string;
+        };
+        Relationships: [];
+      };
+      team_members: {
+        Row: {
+          id: string;
+          user_id: string;
+          team_id: string;
+          role: string;
+          joined_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          team_id: string;
+          role: string;
+          joined_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          team_id?: string;
+          role?: string;
+          joined_at?: string;
+        };
+        Relationships: [];
+      };
+      status_pages: {
+        Row: {
+          id: string;
+          team_id: string;
+          slug: string;
+          title: string;
+          description: string | null;
+          logo_url: string | null;
+          is_public: boolean | null;
+          custom_domain: string | null;
+          selected_monitors: string[] | null;
+          incident_history_days: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          slug: string;
+          title: string;
+          description?: string | null;
+          logo_url?: string | null;
+          is_public?: boolean | null;
+          custom_domain?: string | null;
+          selected_monitors?: string[] | null;
+          incident_history_days?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          slug?: string;
+          title?: string;
+          description?: string | null;
+          logo_url?: string | null;
+          is_public?: boolean | null;
+          custom_domain?: string | null;
+          selected_monitors?: string[] | null;
+          incident_history_days?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      notification_channels: {
+        Row: {
+          id: string;
+          team_id: string;
+          type: string;
+          name: string;
+          enabled: boolean | null;
+          config: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          type: string;
+          name: string;
+          enabled?: boolean | null;
+          config?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          type?: string;
+          name?: string;
+          enabled?: boolean | null;
+          config?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

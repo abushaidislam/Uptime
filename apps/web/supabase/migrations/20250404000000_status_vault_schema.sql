@@ -149,73 +149,53 @@ ALTER TABLE notification_channels ENABLE ROW LEVEL SECURITY;
 
 -- Monitors policies
 CREATE POLICY "Users can view own monitors" ON monitors
-    FOR SELECT USING (user_id = auth.uid() OR team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid()
-    ));
+    FOR SELECT USING (user_id = auth.uid());
 
-CREATE POLICY "Users can create own monitors" ON monitors
+CREATE POLICY "Users can create monitors" ON monitors
     FOR INSERT WITH CHECK (user_id = auth.uid());
 
 CREATE POLICY "Users can update own monitors" ON monitors
-    FOR UPDATE USING (user_id = auth.uid() OR team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-    ));
+    FOR UPDATE USING (user_id = auth.uid());
 
 CREATE POLICY "Users can delete own monitors" ON monitors
-    FOR DELETE USING (user_id = auth.uid() OR team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-    ));
+    FOR DELETE USING (user_id = auth.uid());
 
 -- Health checks policies
 CREATE POLICY "Users can view health checks for their monitors" ON health_checks
     FOR SELECT USING (monitor_id IN (
-        SELECT id FROM monitors WHERE user_id = auth.uid() OR team_id IN (
-            SELECT team_id FROM team_members WHERE user_id = auth.uid()
-        )
+        SELECT id FROM monitors WHERE user_id = auth.uid()
     ));
 
 -- Incidents policies
 CREATE POLICY "Users can view incidents for their monitors" ON incidents
     FOR SELECT USING (monitor_id IN (
-        SELECT id FROM monitors WHERE user_id = auth.uid() OR team_id IN (
-            SELECT team_id FROM team_members WHERE user_id = auth.uid()
-        )
+        SELECT id FROM monitors WHERE user_id = auth.uid()
     ));
 
 CREATE POLICY "Users can create incidents for their monitors" ON incidents
     FOR INSERT WITH CHECK (monitor_id IN (
-        SELECT id FROM monitors WHERE user_id = auth.uid() OR team_id IN (
-            SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-        )
+        SELECT id FROM monitors WHERE user_id = auth.uid()
     ));
 
 CREATE POLICY "Users can update incidents for their monitors" ON incidents
     FOR UPDATE USING (monitor_id IN (
-        SELECT id FROM monitors WHERE user_id = auth.uid() OR team_id IN (
-            SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-        )
+        SELECT id FROM monitors WHERE user_id = auth.uid()
     ));
 
 -- Alerts policies
 CREATE POLICY "Users can view alerts for their monitors" ON alerts
     FOR SELECT USING (monitor_id IN (
-        SELECT id FROM monitors WHERE user_id = auth.uid() OR team_id IN (
-            SELECT team_id FROM team_members WHERE user_id = auth.uid()
-        )
+        SELECT id FROM monitors WHERE user_id = auth.uid()
     ));
 
 CREATE POLICY "Users can update their alerts" ON alerts
     FOR UPDATE USING (monitor_id IN (
-        SELECT id FROM monitors WHERE user_id = auth.uid() OR team_id IN (
-            SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-        )
+        SELECT id FROM monitors WHERE user_id = auth.uid()
     ));
 
 -- Teams policies
 CREATE POLICY "Users can view their teams" ON teams
-    FOR SELECT USING (id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid()
-    ) OR owner_id = auth.uid());
+    FOR SELECT USING (owner_id = auth.uid());
 
 CREATE POLICY "Users can create teams" ON teams
     FOR INSERT WITH CHECK (owner_id = auth.uid());
@@ -227,38 +207,24 @@ CREATE POLICY "Only owners can delete teams" ON teams
     FOR DELETE USING (owner_id = auth.uid());
 
 -- Team members policies
-CREATE POLICY "Users can view team members" ON team_members
-    FOR SELECT USING (team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid()
-    ) OR team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+CREATE POLICY "Users can view team members of their teams" ON team_members
+    FOR SELECT USING (user_id = auth.uid());
 
-CREATE POLICY "Owners and admins can add team members" ON team_members
-    FOR INSERT WITH CHECK (team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-    ) OR team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+CREATE POLICY "Owners can add team members" ON team_members
+    FOR INSERT WITH CHECK (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
 
-CREATE POLICY "Owners and admins can remove team members" ON team_members
-    FOR DELETE USING (team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-    ) OR team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+CREATE POLICY "Owners can remove team members" ON team_members
+    FOR DELETE USING (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
 
 -- Status pages policies
 CREATE POLICY "Users can view their status pages" ON status_pages
-    FOR SELECT USING (team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid()
-    ) OR team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+    FOR SELECT USING (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
 
-CREATE POLICY "Team members can create status pages" ON status_pages
-    FOR INSERT WITH CHECK (team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-    ) OR team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+CREATE POLICY "Owners can create status pages" ON status_pages
+    FOR INSERT WITH CHECK (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
 
-CREATE POLICY "Team members can update status pages" ON status_pages
-    FOR UPDATE USING (team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-    ) OR team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+CREATE POLICY "Owners can update status pages" ON status_pages
+    FOR UPDATE USING (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
 
-CREATE POLICY "Team members can delete status pages" ON status_pages
-    FOR DELETE USING (team_id IN (
-        SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin')
-    ) OR team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+CREATE POLICY "Owners can delete status pages" ON status_pages
+    FOR DELETE USING (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));

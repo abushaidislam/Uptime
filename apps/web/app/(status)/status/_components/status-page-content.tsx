@@ -158,15 +158,25 @@ export function StatusPageContent({ monitors, incidents }: StatusPageContentProp
                         {incident.description}
                       </p>
                     )}
-                    {incident.updates.length > 0 && (
+                    {incident.updates?.length > 0 && (
                       <div className="mt-3 pt-3 border-t">
                         <p className="text-sm font-medium">Latest Update</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {incident.updates[incident.updates.length - 1].message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(incident.updates[incident.updates.length - 1].createdAt).toLocaleString()}
-                        </p>
+                        {(() => {
+                          const lastUpdate = incident.updates[incident.updates.length - 1];
+                          if (!lastUpdate) return null;
+                          return (
+                            <>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {lastUpdate.message}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {lastUpdate.createdAt 
+                                  ? new Date(lastUpdate.createdAt).toLocaleString()
+                                  : ''}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </CardContent>

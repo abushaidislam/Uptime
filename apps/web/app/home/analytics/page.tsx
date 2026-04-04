@@ -8,7 +8,7 @@ export default async function AnalyticsPage() {
   
   // Fetch analytics for first monitor as default
   const defaultAnalytics = monitors.length > 0 
-    ? await getMonitorAnalytics(monitors[0].id)
+    ? (await getMonitorAnalytics(monitors[0]!.id)) ?? null
     : null;
 
   return (
