@@ -356,11 +356,15 @@ function getAlertTemplateId(alert: Alert): Extract<
   }
 }
 
-function formatDateTime(value: string): string {
+function formatDateTime(value?: string): string {
+  if (!value) {
+    return 'Not available';
+  }
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return String(value);
   }
 
   return new Intl.DateTimeFormat('en-US', {
@@ -378,8 +382,10 @@ function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_APP_URL;
 }
 
-function escapeHtml(value: string): string {
-  return value
+function escapeHtml(value: unknown): string {
+  const normalized = value == null ? '' : String(value);
+
+  return normalized
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -387,7 +393,7 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
-function escapeAttribute(value: string): string {
+function escapeAttribute(value: unknown): string {
   return escapeHtml(value);
 }
 

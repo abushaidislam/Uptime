@@ -90,33 +90,47 @@ export class SslChecker implements SSLChecker {
     timeoutMs: number,
   ): Promise<DetailedPeerCertificate | null> {
     return new Promise((resolve, reject) => {
+      let settled = false;
+
+      const finish = (
+        callback: typeof resolve | typeof reject,
+        value: DetailedPeerCertificate | Error | null,
+      ) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeoutId);
+        callback(value as never);
+      };
+
+      const socket = connect({
+        host: hostname,
+        port,
+        rejectUnauthorized: false,
+        servername: hostname,
+      });
+
       const timeoutId = setTimeout(() => {
-        reject(new Error('ETIMEDOUT'));
+        socket.destroy();
+        finish(reject, new Error('ETIMEDOUT'));
       }, timeoutMs);
 
       try {
-        const socket = connect({
-          host: hostname,
-          port,
-          rejectUnauthorized: false,
-          servername: hostname,
-        });
-
-        socket.on('secureConnect', () => {
-          clearTimeout(timeoutId);
+        socket.once('secureConnect', () => {
           const cert = socket.getPeerCertificate(true);
           socket.end();
-          resolve(cert && Object.keys(cert).length > 0 ? cert : null);
+          finish(resolve, cert && Object.keys(cert).length > 0 ? cert : null);
         });
 
-        socket.on('error', (err: Error) => {
-          clearTimeout(timeoutId);
+        socket.once('error', (err: Error) => {
           socket.destroy();
-          reject(err);
+          finish(reject, err);
         });
       } catch (err) {
-        clearTimeout(timeoutId);
-        reject(err);
+        socket.destroy();
+        finish(reject, err as Error);
       }
     });
   }

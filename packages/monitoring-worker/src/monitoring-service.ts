@@ -4,7 +4,7 @@ import { HttpChecker } from './checkers/http-checker.js';
 import { SslChecker } from './checkers/ssl-checker.js';
 import { TcpChecker } from './checkers/tcp-checker.js';
 import { dispatchAlertNotifications } from './alert-delivery.js';
-import type { HealthCheckResult, Monitor } from './types.js';
+import type { Alert, HealthCheckResult, Monitor } from './types.js';
 
 const httpChecker = new HttpChecker();
 const tcpChecker = new TcpChecker();
@@ -17,6 +17,22 @@ export interface MonitorRunResult {
   responseTime: number;
   statusCode?: number;
   error?: string;
+}
+
+function toAlert(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    monitorId: row.monitor_id as string,
+    incidentId: row.incident_id as string | undefined,
+    type: row.type as Alert['type'],
+    severity: row.severity as Alert['severity'],
+    status: row.status as Alert['status'],
+    message: row.message as string,
+    createdAt: row.created_at as string,
+    acknowledgedAt: row.acknowledged_at as string | undefined,
+    acknowledgedBy: row.acknowledged_by as string | undefined,
+    resolvedAt: row.resolved_at as string | undefined,
+  };
 }
 
 export function toMonitor(row: Record<string, unknown>): Monitor {
@@ -320,7 +336,11 @@ async function createAlert(
 
   // Dispatch notifications
   if (alert) {
-    await dispatchAlertNotifications(supabase, alert, monitor);
+    await dispatchAlertNotifications(
+      supabase,
+      toAlert(alert as Record<string, unknown>),
+      monitor,
+    );
   }
 }
 
@@ -345,7 +365,11 @@ async function handleMonitorRecovery(
       console.log(`  Created recovery alert for monitor ${monitor.id}`);
       // Dispatch recovery notification
       if (alert) {
-        await dispatchAlertNotifications(supabase, alert, monitor);
+        await dispatchAlertNotifications(
+          supabase,
+          toAlert(alert as Record<string, unknown>),
+          monitor,
+        );
       }
     }
   }
@@ -431,6 +455,10 @@ async function maybeCreateSslExpiryAlert(
   console.log(`  Created SSL expiry alert for monitor ${monitor.id} (${daysUntilExpiry} days remaining)`);
 
   if (alert) {
-    await dispatchAlertNotifications(supabase, alert, monitor);
+    await dispatchAlertNotifications(
+      supabase,
+      toAlert(alert as Record<string, unknown>),
+      monitor,
+    );
   }
 }

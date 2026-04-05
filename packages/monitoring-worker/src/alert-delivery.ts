@@ -12,6 +12,8 @@ export async function dispatchAlertNotifications(
   alert: Alert,
   monitor: Monitor,
 ): Promise<void> {
+  const normalizedAlert = normalizeAlert(alert);
+
   if (!monitor.notificationsEnabled) {
     console.log(`[AlertDelivery] Notifications disabled for monitor ${monitor.id}`);
     return;
@@ -49,7 +51,7 @@ export async function dispatchAlertNotifications(
   // Dispatch to each channel
   for (const channel of channels) {
     try {
-      await dispatchToChannel(channel, alert, monitor);
+      await dispatchToChannel(channel, normalizedAlert, monitor);
     } catch (err) {
       console.error(`[AlertDelivery] Failed to dispatch to ${channel.type}:`, err);
     }
@@ -317,4 +319,25 @@ function getSmtpSecure(port: number): boolean {
   }
 
   return port === 465;
+}
+
+function normalizeAlert(alert: Alert): Alert {
+  const row = alert as Alert & {
+    acknowledged_at?: string;
+    acknowledged_by?: string;
+    created_at?: string;
+    incident_id?: string;
+    monitor_id?: string;
+    resolved_at?: string;
+  };
+
+  return {
+    ...alert,
+    acknowledgedAt: alert.acknowledgedAt ?? row.acknowledged_at,
+    acknowledgedBy: alert.acknowledgedBy ?? row.acknowledged_by,
+    createdAt: alert.createdAt ?? row.created_at ?? new Date().toISOString(),
+    incidentId: alert.incidentId ?? row.incident_id,
+    monitorId: alert.monitorId ?? row.monitor_id ?? '',
+    resolvedAt: alert.resolvedAt ?? row.resolved_at,
+  };
 }

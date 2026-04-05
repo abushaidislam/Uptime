@@ -68,7 +68,20 @@ test('buildAlertEmail switches template for SSL warnings', () => {
 
   assert.equal(email.templateId, 'ssl-expiring');
   assert.match(email.html, /SSL certificate expires in 5 days/);
-  assert.match(email.text, /Certificate expiry:/);
+  assert.match(email.text, /SSL expiry:/);
+});
+
+test('buildAlertEmail tolerates missing alert timestamps', () => {
+  const email = buildAlertEmail(
+    createAlert({
+      createdAt: undefined as unknown as string,
+      message: 'Primary API is down again',
+    }),
+    createMonitor(),
+  );
+
+  assert.match(email.html, /Not available/);
+  assert.match(email.text, /Triggered: Not available/);
 });
 
 test('future templates render invite and weekly report layouts', () => {
