@@ -129,6 +129,27 @@ function toStatusPage(row: Record<string, unknown>): StatusPage {
   };
 }
 
+async function getOwnedTeamId(
+  client: any,
+  userId: string | undefined,
+): Promise<string | undefined> {
+  if (!userId) {
+    return undefined;
+  }
+
+  const { data, error } = await client
+    .from('teams')
+    .select('id')
+    .eq('owner_id', userId)
+    .single();
+
+  if (error || !data) {
+    return undefined;
+  }
+
+  return data.id as string;
+}
+
 // Monitor Actions
 export async function getMonitors(): Promise<Monitor[]> {
   const client = getSupabaseServerClient();
@@ -646,20 +667,16 @@ export async function createNotificationChannel(data: {
 }): Promise<NotificationChannel> {
   const client = getSupabaseServerClient();
   const { data: { user } } = await client.auth.getUser();
-  
-  // Get user's team
-  const { data: teamMember } = await client
-    .from('team_members')
-    .select('team_id')
-    .eq('user_id', user?.id ?? '')
-    .single();
-  
-  const teamId = teamMember?.team_id;
+  const teamId = await getOwnedTeamId(client, user?.id);
+
+  if (!teamId) {
+    throw new Error('No owned team found for the current user.');
+  }
   
   const { data: channel, error } = await client
     .from('notification_channels')
     .insert({
-      team_id: teamId || user?.id || 'unknown',
+      team_id: teamId,
       type: data.type,
       name: data.name,
       enabled: true,
@@ -715,15 +732,11 @@ export async function deleteNotificationChannel(id: string): Promise<boolean> {
 export async function getStatusPage(): Promise<StatusPage | undefined> {
   const client = getSupabaseServerClient();
   const { data: { user } } = await client.auth.getUser();
-  
-  // Get user's team
-  const { data: teamMember } = await client
-    .from('team_members')
-    .select('team_id')
-    .eq('user_id', user?.id ?? '')
-    .single();
-  
-  const teamId = teamMember?.team_id || user?.id || 'unknown';
+  const teamId = await getOwnedTeamId(client, user?.id);
+
+  if (!teamId) {
+    return undefined;
+  }
   
   const { data, error } = await client
     .from('status_pages')
@@ -746,15 +759,11 @@ export async function upsertStatusPage(data: {
 }): Promise<StatusPage> {
   const client = getSupabaseServerClient();
   const { data: { user } } = await client.auth.getUser();
-  
-  // Get user's team
-  const { data: teamMember } = await client
-    .from('team_members')
-    .select('team_id')
-    .eq('user_id', user?.id ?? '')
-    .single();
-  
-  const teamId = teamMember?.team_id || user?.id || 'unknown';
+  const teamId = await getOwnedTeamId(client, user?.id);
+
+  if (!teamId) {
+    throw new Error('No owned team found for the current user.');
+  }
   
   // Check if status page exists
   const existing = await getStatusPage();

@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react';
 import { Button } from '@kit/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@kit/ui/card';
 import { PageHeader } from '@kit/ui/page';
+import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 
 import type { NotificationChannel } from '~/lib/status-vault/types';
@@ -21,8 +22,17 @@ export function NotificationChannelsContainer() {
     name: string;
     config: NotificationChannel['config'];
   }) => {
-    await create(data);
-    setIsCreateDialogOpen(false);
+    try {
+      await create(data);
+      setIsCreateDialogOpen(false);
+      toast.success('Notification channel created');
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Failed to create notification channel';
+
+      toast.error(message);
+    }
   }, [create]);
 
   const handleUpdate = useCallback(async (id: string, data: Partial<NotificationChannel>) => {
