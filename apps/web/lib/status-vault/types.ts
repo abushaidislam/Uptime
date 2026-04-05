@@ -165,3 +165,59 @@ export interface MonitorAnalytics {
   responseTimeData: TimeSeriesData[];
   statusHistory: { timestamp: string; status: 'up' | 'down' }[];
 }
+
+// SSL Certificate Types
+export type SSLGrade = 'A+' | 'A' | 'B' | 'C' | 'D' | 'F' | 'Unknown';
+
+export interface SSLCertificate {
+  id: string;
+  monitorId: string;
+  domain: string;
+  issuer?: string;
+  subject?: string;
+  validFrom?: string;
+  validTo?: string;
+  fingerprint?: string;
+  grade?: SSLGrade;
+  daysUntilExpiry?: number;
+  isValid: boolean;
+  errorMessage?: string;
+  lastCheckedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SSLCertificateWithMonitor extends SSLCertificate {
+  monitorName: string;
+  monitorUrl: string;
+  monitorStatus: MonitorStatus;
+}
+
+// Team Invitation Types
+export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
+
+export interface TeamInvitation {
+  id: string;
+  teamId: string;
+  email: string;
+  role: 'admin' | 'member';
+  token: string;
+  status: InvitationStatus;
+  invitedBy: string;
+  invitedAt: string;
+  expiresAt: string;
+  acceptedAt?: string;
+  acceptedBy?: string;
+}
+
+export interface TeamInvitationWithDetails extends TeamInvitation {
+  teamName: string;
+  invitedByName?: string;
+  invitedByEmail?: string;
+}
+
+export interface TeamMemberWithProfile extends TeamMember {
+  email: string;
+  name?: string;
+  pictureUrl?: string;
+}

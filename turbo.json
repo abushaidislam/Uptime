@@ -21,6 +21,7 @@
         "^build"
       ],
       "outputs": [
+        "dist/**",
         ".next/**",
         "!.next/cache/**",
         "next-env.d.ts"

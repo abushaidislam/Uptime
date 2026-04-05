@@ -6,7 +6,6 @@ import {
   Bell, 
   Globe, 
   BarChart3, 
-  Settings,
   Shield,
   Zap,
 } from 'lucide-react';
@@ -70,8 +69,13 @@ const routes = [
       },
       {
         label: 'SSL Certificates',
-        path: '/home/settings/ssl',
+        path: '/home/ssl',
         Icon: <Shield className={iconClasses} />,
+      },
+      {
+        label: 'Team',
+        path: '/home/settings/team',
+        Icon: <User className={iconClasses} />,
       },
       {
         label: 'Integrations',

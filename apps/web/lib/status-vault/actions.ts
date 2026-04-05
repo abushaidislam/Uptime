@@ -11,11 +11,18 @@ import type {
   AnalyticsSummary,
   MonitorAnalytics,
   MonitorType,
+  MonitorStatus,
   IncidentStatus,
   AlertSeverity,
+  InvitationStatus,
   IncidentUpdate,
   NotificationChannel,
   StatusPage,
+  SSLCertificate,
+  SSLCertificateWithMonitor,
+  TeamInvitation,
+  TeamInvitationWithDetails,
+  TeamMemberWithProfile,
 } from '~/lib/status-vault/types';
 
 // Helper to convert DB snake_case to camelCase
@@ -135,6 +142,7 @@ function createPersonalTeamSlug(userId: string) {
 }
 
 async function getOwnedTeamId(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   userId: string | undefined,
 ): Promise<string | undefined> {
@@ -156,6 +164,7 @@ async function getOwnedTeamId(
 }
 
 async function getMemberTeamId(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   userId: string | undefined,
 ): Promise<string | undefined> {
@@ -178,6 +187,7 @@ async function getMemberTeamId(
 }
 
 async function createPersonalTeam(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   user: { id?: string; email?: string | null } | null | undefined,
 ): Promise<string | undefined> {
@@ -215,6 +225,7 @@ async function createPersonalTeam(
 }
 
 async function resolveCurrentTeamId(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client: any,
   user: { id?: string; email?: string | null } | null | undefined,
   options?: { createIfMissing?: boolean },
@@ -983,4 +994,372 @@ export async function getPublicIncidentsForStatusPage(): Promise<Incident[]> {
   );
 
   return incidents;
+}
+
+// SSL Certificate Actions
+function toSSLCertificate(row: Record<string, unknown>): SSLCertificate {
+  return {
+    id: row.id as string,
+    monitorId: row.monitor_id as string,
+    domain: row.domain as string,
+    issuer: row.issuer as string | undefined,
+    subject: row.subject as string | undefined,
+    validFrom: row.valid_from as string | undefined,
+    validTo: row.valid_to as string | undefined,
+    fingerprint: row.fingerprint as string | undefined,
+    grade: row.grade as SSLCertificate['grade'],
+    daysUntilExpiry: row.days_until_expiry as number | undefined,
+    isValid: row.is_valid as boolean,
+    errorMessage: row.error_message as string | undefined,
+    lastCheckedAt: row.last_checked_at as string,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export async function getSSLCertificates(): Promise<SSLCertificateWithMonitor[]> {
+  const client = getSupabaseServerClient();
+  const { data, error } = await client
+    .from('ssl_certificates')
+    .select(`
+      *,
+      monitors!inner(name, url, status)
+    `)
+    .order('valid_to', { ascending: true });
+
+  if (error) throw error;
+
+  return (data || []).map((row: Record<string, unknown>) => {
+    const monitor = row.monitors as Record<string, unknown>;
+    return {
+      ...toSSLCertificate(row),
+      monitorName: monitor.name as string,
+      monitorUrl: monitor.url as string,
+      monitorStatus: monitor.status as MonitorStatus,
+    };
+  });
+}
+
+export async function getSSLCertificate(id: string): Promise<SSLCertificate | undefined> {
+  const client = getSupabaseServerClient();
+  const { data, error } = await client
+    .from('ssl_certificates')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return undefined;
+  return toSSLCertificate(data);
+}
+
+export async function getSSLCertificateByMonitor(monitorId: string): Promise<SSLCertificate | undefined> {
+  const client = getSupabaseServerClient();
+  const { data, error } = await client
+    .from('ssl_certificates')
+    .select('*')
+    .eq('monitor_id', monitorId)
+    .single();
+
+  if (error || !data) return undefined;
+  return toSSLCertificate(data);
+}
+
+// Team Member Actions
+export async function getTeamMembers(): Promise<TeamMemberWithProfile[]> {
+  const client = getSupabaseServerClient();
+  const { data: { user } } = await client.auth.getUser();
+  const teamId = await resolveCurrentTeamId(client, user);
+
+  if (!teamId) {
+    return [];
+  }
+
+  const { data, error } = await client
+    .from('team_members')
+    .select(`
+      *,
+      accounts!inner(email, name, picture_url)
+    `)
+    .eq('team_id', teamId)
+    .order('joined_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map((row: Record<string, unknown>) => {
+    const account = row.accounts as Record<string, unknown>;
+    return {
+      id: row.id as string,
+      userId: row.user_id as string,
+      teamId: row.team_id as string,
+      role: row.role as TeamMemberWithProfile['role'],
+      joinedAt: row.joined_at as string,
+      email: account.email as string,
+      name: account.name as string | undefined,
+      pictureUrl: account.picture_url as string | undefined,
+    };
+  });
+}
+
+export async function removeTeamMember(id: string): Promise<boolean> {
+  const client = getSupabaseServerClient();
+  const { error } = await client
+    .from('team_members')
+    .delete()
+    .eq('id', id);
+
+  return !error;
+}
+
+export async function updateTeamMemberRole(
+  id: string,
+  role: 'admin' | 'member'
+): Promise<TeamMemberWithProfile | undefined> {
+  const client = getSupabaseServerClient();
+  const { data, error } = await client
+    .from('team_members')
+    .update({ role })
+    .eq('id', id)
+    .select(`
+      *,
+      accounts!inner(email, name, picture_url)
+    `)
+    .single();
+
+  if (error || !data) return undefined;
+
+  const account = data.accounts as Record<string, unknown>;
+  return {
+    id: data.id as string,
+    userId: data.user_id as string,
+    teamId: data.team_id as string,
+    role: data.role as TeamMemberWithProfile['role'],
+    joinedAt: data.joined_at as string,
+    email: account.email as string,
+    name: account.name as string | undefined,
+    pictureUrl: account.picture_url as string | undefined,
+  };
+}
+
+// Team Invitation Actions
+function generateInvitationToken(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}-${Math.random().toString(36).substring(2, 15)}`;
+}
+
+function toTeamInvitation(row: Record<string, unknown>): TeamInvitation {
+  return {
+    id: row.id as string,
+    teamId: row.team_id as string,
+    email: row.email as string,
+    role: row.role as 'admin' | 'member',
+    token: row.token as string,
+    status: row.status as InvitationStatus,
+    invitedBy: row.invited_by as string,
+    invitedAt: row.invited_at as string,
+    expiresAt: row.expires_at as string,
+    acceptedAt: row.accepted_at as string | undefined,
+    acceptedBy: row.accepted_by as string | undefined,
+  };
+}
+
+export async function getTeamInvitations(): Promise<TeamInvitationWithDetails[]> {
+  const client = getSupabaseServerClient();
+  const { data: { user } } = await client.auth.getUser();
+  const teamId = await resolveCurrentTeamId(client, user);
+
+  if (!teamId) {
+    return [];
+  }
+
+  const { data, error } = await client
+    .from('team_invitations')
+    .select(`
+      *,
+      teams!inner(name),
+      inviter:accounts!team_invitations_invited_by_fkey(email, name)
+    `)
+    .eq('team_id', teamId)
+    .eq('status', 'pending')
+    .order('invited_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map((row: Record<string, unknown>) => {
+    const team = row.teams as Record<string, unknown>;
+    const inviter = row.inviter as Record<string, unknown> | undefined;
+    return {
+      ...toTeamInvitation(row),
+      teamName: team.name as string,
+      invitedByName: inviter?.name as string | undefined,
+      invitedByEmail: inviter?.email as string | undefined,
+    };
+  });
+}
+
+export async function inviteTeamMember(
+  email: string,
+  role: 'admin' | 'member'
+): Promise<TeamInvitationWithDetails> {
+  const client = getSupabaseServerClient();
+  const { data: { user } } = await client.auth.getUser();
+  const teamId = await resolveCurrentTeamId(client, user, { createIfMissing: true });
+
+  if (!teamId) {
+    throw new Error('Unable to resolve a team for the current user.');
+  }
+
+  if (!user?.id) {
+    throw new Error('User must be authenticated to invite team members.');
+  }
+
+  const token = generateInvitationToken();
+
+  const { data: invitation, error } = await client
+    .from('team_invitations')
+    .insert({
+      team_id: teamId,
+      email: email.toLowerCase(),
+      role,
+      token,
+      invited_by: user.id,
+    })
+    .select(`
+      *,
+      teams!inner(name),
+      inviter:accounts!team_invitations_invited_by_fkey(email, name)
+    `)
+    .single();
+
+  if (error) throw error;
+
+  const team = invitation.teams as Record<string, unknown>;
+  const inviter = invitation.inviter as Record<string, unknown> | undefined;
+
+  return {
+    ...toTeamInvitation(invitation),
+    teamName: team.name as string,
+    invitedByName: inviter?.name as string | undefined,
+    invitedByEmail: inviter?.email as string | undefined,
+  };
+}
+
+export async function cancelTeamInvitation(id: string): Promise<boolean> {
+  const client = getSupabaseServerClient();
+  const { error } = await client
+    .from('team_invitations')
+    .update({ status: 'revoked' })
+    .eq('id', id);
+
+  return !error;
+}
+
+export async function getTeamInvitationByToken(token: string): Promise<TeamInvitationWithDetails | undefined> {
+  const client = getSupabaseServerClient();
+
+  const { data, error } = await client
+    .from('team_invitations')
+    .select(`
+      *,
+      teams!inner(name),
+      inviter:accounts!team_invitations_invited_by_fkey(email, name)
+    `)
+    .eq('token', token)
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+    .single();
+
+  if (error || !data) return undefined;
+
+  const team = data.teams as Record<string, unknown>;
+  const inviter = data.inviter as Record<string, unknown> | undefined;
+
+  return {
+    ...toTeamInvitation(data),
+    teamName: team.name as string,
+    invitedByName: inviter?.name as string | undefined,
+    invitedByEmail: inviter?.email as string | undefined,
+  };
+}
+
+export async function acceptTeamInvitation(token: string): Promise<TeamMemberWithProfile | undefined> {
+  const client = getSupabaseServerClient();
+  const { data: { user } } = await client.auth.getUser();
+
+  if (!user?.id) {
+    throw new Error('User must be authenticated to accept invitations.');
+  }
+
+  // Get the invitation
+  const invitation = await getTeamInvitationByToken(token);
+  if (!invitation) {
+    throw new Error('Invalid or expired invitation.');
+  }
+
+  // Check if user email matches invitation email
+  if (user.email !== invitation.email) {
+    throw new Error('This invitation is for a different email address.');
+  }
+
+  // Add user to team
+  const { data: member, error: memberError } = await client
+    .from('team_members')
+    .insert({
+      user_id: user.id,
+      team_id: invitation.teamId,
+      role: invitation.role,
+    })
+    .select(`
+      *,
+      accounts!inner(email, name, picture_url)
+    `)
+    .single();
+
+  if (memberError) {
+    // If user is already a member, return existing member
+    const { data: existingMember } = await client
+      .from('team_members')
+      .select(`
+        *,
+        accounts!inner(email, name, picture_url)
+      `)
+      .eq('user_id', user.id)
+      .eq('team_id', invitation.teamId)
+      .single();
+
+    if (existingMember) {
+      const account = existingMember.accounts as Record<string, unknown>;
+      return {
+        id: existingMember.id as string,
+        userId: existingMember.user_id as string,
+        teamId: existingMember.team_id as string,
+        role: existingMember.role as TeamMemberWithProfile['role'],
+        joinedAt: existingMember.joined_at as string,
+        email: account.email as string,
+        name: account.name as string | undefined,
+        pictureUrl: account.picture_url as string | undefined,
+      };
+    }
+    throw memberError;
+  }
+
+  // Update invitation status
+  await client
+    .from('team_invitations')
+    .update({
+      status: 'accepted',
+      accepted_at: new Date().toISOString(),
+      accepted_by: user.id,
+    })
+    .eq('id', invitation.id);
+
+  const account = member.accounts as Record<string, unknown>;
+  return {
+    id: member.id as string,
+    userId: member.user_id as string,
+    teamId: member.team_id as string,
+    role: member.role as TeamMemberWithProfile['role'],
+    joinedAt: member.joined_at as string,
+    email: account.email as string,
+    name: account.name as string | undefined,
+    pictureUrl: account.picture_url as string | undefined,
+  };
 }
