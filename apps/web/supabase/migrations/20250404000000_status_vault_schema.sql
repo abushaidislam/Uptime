@@ -228,3 +228,16 @@ CREATE POLICY "Owners can update status pages" ON status_pages
 
 CREATE POLICY "Owners can delete status pages" ON status_pages
     FOR DELETE USING (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+
+-- Notification channels policies
+CREATE POLICY "Users can view their notification channels" ON notification_channels
+    FOR SELECT USING (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+
+CREATE POLICY "Users can create notification channels" ON notification_channels
+    FOR INSERT WITH CHECK (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+
+CREATE POLICY "Users can update their notification channels" ON notification_channels
+    FOR UPDATE USING (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));
+
+CREATE POLICY "Users can delete their notification channels" ON notification_channels
+    FOR DELETE USING (team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()));

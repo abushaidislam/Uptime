@@ -106,8 +106,9 @@ function toNotificationChannel(row: Record<string, unknown>): NotificationChanne
     id: row.id as string,
     type: row.type as NotificationChannel['type'],
     name: row.name as string,
-    enabled: row.enabled as boolean,
+    enabled: (row.enabled as boolean | null) ?? true,
     config: row.config as NotificationChannel['config'],
+    createdAt: row.created_at as string,
   };
 }
 

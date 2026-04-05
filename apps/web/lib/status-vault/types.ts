@@ -85,6 +85,7 @@ export interface NotificationChannel {
   name: string;
   enabled: boolean;
   config: EmailConfig | SlackConfig | WebhookConfig | SmsConfig;
+  createdAt: string;
 }
 
 export interface EmailConfig {
