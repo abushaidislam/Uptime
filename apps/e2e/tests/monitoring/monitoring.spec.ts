@@ -15,20 +15,12 @@ test.describe('Monitoring Worker E2E', () => {
     testMonitorName = `Test Monitor ${Date.now()}`;
   });
 
-  test('should login and create a monitor', async ({ page }) => {
-    // Sign in with provided credentials
-    await auth.goToSignIn();
+  test('should login and create a monitor', async ({ page: _page }) => {
+    // Create test user via signup flow
+    await auth.signUpFlow('/home/monitors');
     
-    await auth.signIn({
-      email: 'abushaidislam7@gmail.com',
-      password: 'abushaidislam7@gmail.com',
-    });
-
-    await page.waitForURL('**/home', { timeout: 10000 });
-    expect(page.url()).toContain('/home');
-
-    // Navigate to monitors
-    await monitors.goToMonitors();
+    // Navigate to create monitor
+    await monitors.goToCreateMonitor();
     
     // Create a test monitor (using httpbin.org for reliable testing)
     await monitors.createMonitor({
@@ -47,16 +39,18 @@ test.describe('Monitoring Worker E2E', () => {
   });
 
   test('should see monitor health check results within 2 minutes', async ({ page }) => {
-    // Sign in first
-    await auth.goToSignIn();
-    await auth.signIn({
-      email: 'abushaidislam7@gmail.com',
-      password: 'abushaidislam7@gmail.com',
+    // Create test user via signup flow  
+    await auth.signUpFlow('/home/monitors');
+    
+    // Create a test monitor first
+    await monitors.goToCreateMonitor();
+    await monitors.createMonitor({
+      name: testMonitorName,
+      url: 'https://httpbin.org/get',
+      type: 'https',
+      interval: 60,
+      timeout: 10,
     });
-    await page.waitForURL('**/home', { timeout: 10000 });
-
-    // Navigate to monitors
-    await monitors.goToMonitors();
 
     // Wait for background worker to perform health check
     // Worker checks every 60 seconds, so we wait up to 2 minutes
@@ -80,14 +74,19 @@ test.describe('Monitoring Worker E2E', () => {
   });
 
   test('should view monitor details with health check history', async ({ page }) => {
-    // Sign in
-    await auth.goToSignIn();
-    await auth.signIn({
-      email: 'abushaidislam7@gmail.com',
-      password: 'abushaidislam7@gmail.com',
+    // Create test user via signup flow
+    await auth.signUpFlow('/home/monitors');
+    
+    // Create a test monitor first
+    await monitors.goToCreateMonitor();
+    await monitors.createMonitor({
+      name: testMonitorName,
+      url: 'https://httpbin.org/get',
+      type: 'https',
+      interval: 60,
+      timeout: 10,
     });
-    await page.waitForURL('**/home', { timeout: 10000 });
-
+    
     // Navigate to monitors and view details
     await monitors.goToMonitors();
     await monitors.clickViewDetails(testMonitorName);
@@ -106,15 +105,20 @@ test.describe('Monitoring Worker E2E', () => {
     console.log('✅ Monitor details page shows health check history');
   });
 
-  test('should cleanup - delete test monitor', async ({ page }) => {
-    // Sign in
-    await auth.goToSignIn();
-    await auth.signIn({
-      email: 'abushaidislam7@gmail.com',
-      password: 'abushaidislam7@gmail.com',
+  test('should cleanup - delete test monitor', async ({ page: _page }) => {
+    // Create test user via signup flow
+    await auth.signUpFlow('/home/monitors');
+    
+    // Create a test monitor first
+    await monitors.goToCreateMonitor();
+    await monitors.createMonitor({
+      name: testMonitorName,
+      url: 'https://httpbin.org/get',
+      type: 'https',
+      interval: 60,
+      timeout: 10,
     });
-    await page.waitForURL('**/home', { timeout: 10000 });
-
+    
     // Navigate to monitors and delete
     await monitors.goToMonitors();
     await monitors.deleteMonitor(testMonitorName);
@@ -130,16 +134,18 @@ test.describe('Monitoring Worker Background Processing', () => {
     const auth = new AuthPageObject(page);
     const monitors = new MonitorsPageObject(page);
 
-    // Sign in
-    await auth.goToSignIn();
-    await auth.signIn({
-      email: 'abushaidislam7@gmail.com',
-      password: 'abushaidislam7@gmail.com',
+    // Create test user via signup flow
+    await auth.signUpFlow('/home/monitors');
+    
+    // Create a test monitor
+    await monitors.goToCreateMonitor();
+    await monitors.createMonitor({
+      name: `Worker Test ${Date.now()}`,
+      url: 'https://httpbin.org/get',
+      type: 'https',
+      interval: 60,
+      timeout: 10,
     });
-    await page.waitForURL('**/home', { timeout: 10000 });
-
-    // Get monitors list
-    await monitors.goToMonitors();
     const monitorCount = await monitors.getMonitorCount();
     
     console.log(`📊 Found ${monitorCount} monitors in database`);

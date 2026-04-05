@@ -7,11 +7,13 @@ import {
   Calendar,
   Activity,
 } from 'lucide-react';
+import Image from 'next/image';
 import { Card, CardContent } from '@kit/ui/card';
 import { Badge } from '@kit/ui/badge';
-import type { Monitor, Incident } from '~/lib/status-vault/types';
+import type { Monitor, Incident, StatusPage } from '~/lib/status-vault/types';
 
 interface StatusPageContentProps {
+  statusPage: StatusPage;
   monitors: Monitor[];
   incidents: Incident[];
 }
@@ -46,7 +48,7 @@ const incidentStatusConfig = {
   resolved: { label: 'Resolved', color: 'bg-emerald-500' },
 };
 
-export function StatusPageContent({ monitors, incidents }: StatusPageContentProps) {
+export function StatusPageContent({ statusPage, monitors, incidents }: StatusPageContentProps) {
   const operationalCount = monitors.filter(m => m.status === 'up').length;
   const downCount = monitors.filter(m => m.status === 'down').length;
   const isAllOperational = downCount === 0 && monitors.length > 0;
@@ -65,10 +67,20 @@ export function StatusPageContent({ monitors, incidents }: StatusPageContentProp
       {/* Header */}
       <div className="text-center mb-12">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <Activity className="h-8 w-8 text-blue-600" />
-          <h1 className="text-3xl font-bold">StatusVault</h1>
+          {statusPage.logoUrl ? (
+            <Image 
+              src={statusPage.logoUrl} 
+              alt={statusPage.title} 
+              width={32} 
+              height={32} 
+              className="h-8 w-auto" 
+            />
+          ) : (
+            <Activity className="h-8 w-8 text-blue-600" />
+          )}
+          <h1 className="text-3xl font-bold">{statusPage.title || 'StatusVault'}</h1>
         </div>
-        <p className="text-muted-foreground">Real-time service status and incident updates</p>
+        <p className="text-muted-foreground">{statusPage.description || 'Real-time service status and incident updates'}</p>
       </div>
 
       {/* Overall Status */}

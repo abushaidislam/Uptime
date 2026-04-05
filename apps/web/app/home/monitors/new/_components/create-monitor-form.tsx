@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Globe, Server, Activity, Clock } from 'lucide-react';
+import { Globe, Server, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
 import { Button } from '@kit/ui/button';
 import { Input } from '@kit/ui/input';
@@ -15,13 +15,13 @@ const monitorTypes = [
   { value: 'https' as MonitorType, label: 'HTTPS', icon: Globe, description: 'Monitor a secure website or API' },
   { value: 'http' as MonitorType, label: 'HTTP', icon: Globe, description: 'Monitor a website or API' },
   { value: 'tcp' as MonitorType, label: 'TCP', icon: Server, description: 'Monitor a TCP port (e.g., database, custom service)' },
-  { value: 'ping' as MonitorType, label: 'Ping', icon: Activity, description: 'ICMP ping check' },
+  // TODO: Implement ICMP ping in worker before exposing
+  // { value: 'ping' as MonitorType, label: 'Ping', icon: Activity, description: 'ICMP ping check' },
 ];
 
 const intervalOptions = [
-  { value: 30, label: '30 seconds' },
+  // Minimum 60s enforced by worker
   { value: 60, label: '1 minute' },
-  { value: 120, label: '2 minutes' },
   { value: 300, label: '5 minutes' },
   { value: 600, label: '10 minutes' },
   { value: 1800, label: '30 minutes' },

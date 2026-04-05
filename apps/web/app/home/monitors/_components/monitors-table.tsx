@@ -7,11 +7,9 @@ import {
   AlertTriangle, 
   Pause, 
   Clock, 
-  Play,
   MoreHorizontal,
   Search,
   ExternalLink,
-  BarChart3,
   Trash2,
   PauseCircle,
   PlayCircle,
@@ -188,12 +186,6 @@ export function MonitorsTable({ monitors }: MonitorsTableProps) {
                               <Link href={`/home/monitors/${monitor.id}`}>
                                 <ExternalLink className="mr-2 h-4 w-4" />
                                 View Details
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/home/monitors/${monitor.id}/analytics`}>
-                                <BarChart3 className="mr-2 h-4 w-4" />
-                                Analytics
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleToggleStatus(monitor.id)}>

@@ -5,19 +5,29 @@ import Link from 'next/link';
 import { 
   CheckCircle2, 
   AlertTriangle, 
-  Pause,
+  Pause, 
   Clock,
   ArrowLeft,
   Activity,
   Globe,
   BarChart3,
   History,
-  Play,
+  Save,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
 import { Button } from '@kit/ui/button';
 import { Badge } from '@kit/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@kit/ui/tabs';
+import { Input } from '@kit/ui/input';
+import { Label } from '@kit/ui/label';
+import { Switch } from '@kit/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@kit/ui/select';
 import { 
   AreaChart, 
   Area, 
@@ -28,7 +38,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { Monitor, HealthCheck } from '~/lib/status-vault/types';
-import { toggleMonitorStatus } from '~/lib/status-vault/actions';
+import { updateMonitor } from '~/lib/status-vault/actions';
 
 interface MonitorDetailProps {
   monitor: Monitor;
@@ -71,13 +81,6 @@ const typeLabels = {
 
 export function MonitorDetail({ monitor: initialMonitor, healthChecks }: MonitorDetailProps) {
   const [monitor, setMonitor] = useState(initialMonitor);
-
-  const handleToggleStatus = async () => {
-    const updated = await toggleMonitorStatus(monitor.id);
-    if (updated) {
-      setMonitor(updated);
-    }
-  };
 
   const status = statusConfig[monitor.status];
 
@@ -311,60 +314,7 @@ export function MonitorDetail({ monitor: initialMonitor, healthChecks }: Monitor
         </TabsContent>
 
         <TabsContent value="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle>Monitor Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <p className="font-medium">Name</p>
-                  <p className="text-sm text-muted-foreground">{monitor.name}</p>
-                </div>
-                <div>
-                  <p className="font-medium">URL</p>
-                  <p className="text-sm text-muted-foreground">{monitor.url}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Type</p>
-                  <p className="text-sm text-muted-foreground">{typeLabels[monitor.type]}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Check Interval</p>
-                  <p className="text-sm text-muted-foreground">{monitor.interval} seconds</p>
-                </div>
-                <div>
-                  <p className="font-medium">Timeout</p>
-                  <p className="text-sm text-muted-foreground">{monitor.timeout} seconds</p>
-                </div>
-                {monitor.expectedStatus && (
-                  <div>
-                    <p className="font-medium">Expected Status</p>
-                    <p className="text-sm text-muted-foreground">{monitor.expectedStatus}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t pt-4 mt-4">
-                <p className="font-medium mb-2">Actions</p>
-                <div className="flex gap-2">
-                  <Button onClick={handleToggleStatus} variant="outline">
-                    {monitor.status === 'paused' ? (
-                      <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Resume Monitoring
-                      </>
-                    ) : (
-                      <>
-                        <Pause className="mr-2 h-4 w-4" />
-                        Pause Monitoring
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <MonitorSettingsTab monitor={monitor} onUpdate={setMonitor} />
         </TabsContent>
       </Tabs>
     </div>
@@ -391,5 +341,144 @@ function SSLExpiryBadge({ date }: { date: string }) {
     <Badge className={colorClass}>
       {text}
     </Badge>
+  );
+}
+
+// Monitor Settings Tab Component
+interface MonitorSettingsTabProps {
+  monitor: Monitor;
+  onUpdate: (monitor: Monitor) => void;
+}
+
+function MonitorSettingsTab({ monitor, onUpdate }: MonitorSettingsTabProps) {
+  const [name, setName] = useState(monitor.name);
+  const [url, setUrl] = useState(monitor.url);
+  const [interval, setInterval] = useState(monitor.interval);
+  const [timeout, setTimeout] = useState(monitor.timeout);
+  const [expectedStatus, setExpectedStatus] = useState(monitor.expectedStatus);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(monitor.notificationsEnabled);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const updated = await updateMonitor(monitor.id, {
+        name,
+        url,
+        interval,
+        timeout,
+        expectedStatus,
+        notificationsEnabled,
+      });
+      if (updated) {
+        onUpdate(updated);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const hasChanges = 
+    name !== monitor.name ||
+    url !== monitor.url ||
+    interval !== monitor.interval ||
+    timeout !== monitor.timeout ||
+    expectedStatus !== monitor.expectedStatus ||
+    notificationsEnabled !== monitor.notificationsEnabled;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Monitor Settings</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My API"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="url">URL</Label>
+            <Input
+              id="url"
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://api.example.com/health"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="interval">Check Interval (seconds)</Label>
+            <Select 
+              value={interval.toString()} 
+              onValueChange={(v) => setInterval(Number(v))}
+            >
+              <SelectTrigger id="interval">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="60">1 minute</SelectItem>
+                <SelectItem value="300">5 minutes</SelectItem>
+                <SelectItem value="600">10 minutes</SelectItem>
+                <SelectItem value="1800">30 minutes</SelectItem>
+                <SelectItem value="3600">1 hour</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Minimum: 60 seconds</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="timeout">Timeout (seconds)</Label>
+            <Input
+              id="timeout"
+              type="number"
+              min={5}
+              max={60}
+              value={timeout}
+              onChange={(e) => setTimeout(Number(e.target.value))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="expectedStatus">Expected HTTP Status</Label>
+            <Input
+              id="expectedStatus"
+              type="number"
+              value={expectedStatus || 200}
+              onChange={(e) => setExpectedStatus(Number(e.target.value))}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 pt-4 border-t">
+          <Switch
+            id="notifications"
+            checked={notificationsEnabled}
+            onCheckedChange={setNotificationsEnabled}
+          />
+          <Label htmlFor="notifications">Enable Notifications</Label>
+        </div>
+
+        <div className="flex items-center justify-between pt-4 border-t">
+          <Button 
+            onClick={handleSave} 
+            disabled={!hasChanges || isSaving || !name.trim() || !url.trim()}
+          >
+            <Save className="mr-2 h-4 w-4" />
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+          
+          <div className="text-sm text-muted-foreground">
+            Type: {monitor.type.toUpperCase()} (cannot be changed)
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

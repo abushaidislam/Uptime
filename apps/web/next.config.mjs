@@ -34,9 +34,6 @@ const config = {
   experimental: {
     mdxRs: true,
     reactCompiler: ENABLE_REACT_COMPILER,
-    turbo: {
-      resolveExtensions: ['.ts', '.tsx', '.js', '.jsx'],
-    },
     optimizePackageImports: [
       'recharts',
       'lucide-react',
@@ -46,6 +43,9 @@ const config = {
       'date-fns',
       ...INTERNAL_PACKAGES,
     ],
+  },
+  turbopack: {
+    resolveExtensions: ['.ts', '.tsx', '.js', '.jsx'],
   },
   modularizeImports: {
     lodash: {

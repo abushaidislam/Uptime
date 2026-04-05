@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { HttpChecker } from './checkers/http-checker.js';
 import { SslChecker } from './checkers/ssl-checker.js';
 import { TcpChecker } from './checkers/tcp-checker.js';
+import { dispatchAlertNotifications } from './alert-delivery.js';
 import type { HealthCheckResult, Monitor } from './types.js';
 
 const httpChecker = new HttpChecker();
@@ -103,8 +104,20 @@ export async function runMonitorCheck(
   await saveHealthCheck(supabase, monitor.id, result);
   await updateMonitorStatus(supabase, monitor, result, sslExpiryDate);
 
+  // Handle status transitions
   if (result.status === 'down' && monitor.status !== 'down') {
     await createIncident(supabase, monitor, result);
+  } else if (result.status === 'up' && monitor.status === 'down') {
+    // Monitor recovered - create recovery alert and optionally resolve incident
+    await handleMonitorRecovery(supabase, monitor);
+  }
+
+  // Check for SSL expiry alert
+  if (sslExpiryDate && monitor.notificationsEnabled) {
+    const daysUntilExpiry = Math.ceil((new Date(sslExpiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
+      await maybeCreateSslExpiryAlert(supabase, monitor, daysUntilExpiry);
+    }
   }
 
   console.log(
@@ -270,14 +283,33 @@ async function createAlert(
   monitor: Monitor,
   result: HealthCheckResult,
 ): Promise<void> {
-  const { error } = await supabase.from('alerts').insert({
+  // Rate limiting: Check if an alert was created in the last 5 minutes
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { data: recentAlerts, error: checkError } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('monitor_id', monitor.id)
+    .eq('type', 'down')
+    .gte('created_at', fiveMinutesAgo)
+    .limit(1);
+
+  if (checkError) {
+    console.error('Failed to check recent alerts:', checkError);
+  }
+
+  if (recentAlerts && recentAlerts.length > 0) {
+    console.log(`  Rate limit: Alert already created for monitor ${monitor.id} in last 5 minutes`);
+    return;
+  }
+
+  const { data: alert, error } = await supabase.from('alerts').insert({
     monitor_id: monitor.id,
     type: 'down',
     severity: 'critical',
     status: 'active',
     message: result.error || `${monitor.name} is down`,
     created_at: new Date().toISOString(),
-  });
+  }).select().single();
 
   if (error) {
     console.error('Failed to create alert:', error);
@@ -285,4 +317,116 @@ async function createAlert(
   }
 
   console.log(`  Created alert for monitor ${monitor.id}`);
+
+  // Dispatch notifications
+  if (alert) {
+    await dispatchAlertNotifications(supabase, alert, monitor);
+  }
+}
+
+async function handleMonitorRecovery(
+  supabase: SupabaseClient,
+  monitor: Monitor,
+): Promise<void> {
+  // Create recovery alert
+  if (monitor.notificationsEnabled) {
+    const { data: alert, error: alertError } = await supabase.from('alerts').insert({
+      monitor_id: monitor.id,
+      type: 'up',
+      severity: 'info',
+      status: 'active',
+      message: `${monitor.name} is back up`,
+      created_at: new Date().toISOString(),
+    }).select().single();
+
+    if (alertError) {
+      console.error('Failed to create recovery alert:', alertError);
+    } else {
+      console.log(`  Created recovery alert for monitor ${monitor.id}`);
+      // Dispatch recovery notification
+      if (alert) {
+        await dispatchAlertNotifications(supabase, alert, monitor);
+      }
+    }
+  }
+
+  // Add system-generated incident update
+  const { data: activeIncidents, error: fetchError } = await supabase
+    .from('incidents')
+    .select('*')
+    .eq('monitor_id', monitor.id)
+    .in('status', ['investigating', 'identified', 'monitoring']);
+
+  if (fetchError) {
+    console.error('Failed to fetch active incidents:', fetchError);
+    return;
+  }
+
+  if (activeIncidents && activeIncidents.length > 0) {
+    // Add timeline update for recovery
+    for (const incident of activeIncidents) {
+      const { error: updateError } = await supabase.from('incident_updates').insert({
+        incident_id: incident.id,
+        message: `Monitor ${monitor.name} has recovered and is now up`,
+        status: 'monitoring',
+        created_by: 'system',
+        created_at: new Date().toISOString(),
+      });
+
+      if (updateError) {
+        console.error('Failed to create incident update:', updateError);
+      } else {
+        console.log(`  Added recovery update to incident ${incident.id}`);
+      }
+
+      // Note: We don't auto-resolve the incident - manual resolution remains default
+      // But we update the incident status to 'monitoring' to indicate recovery
+      await supabase
+        .from('incidents')
+        .update({ status: 'monitoring' })
+        .eq('id', incident.id);
+    }
+  }
+}
+
+async function maybeCreateSslExpiryAlert(
+  supabase: SupabaseClient,
+  monitor: Monitor,
+  daysUntilExpiry: number,
+): Promise<void> {
+  // Check if SSL alert already exists for this monitor in last 24 hours
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentAlerts, error: checkError } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('monitor_id', monitor.id)
+    .eq('type', 'ssl_expiring')
+    .gte('created_at', oneDayAgo)
+    .limit(1);
+
+  if (checkError) {
+    console.error('Failed to check recent SSL alerts:', checkError);
+    return;
+  }
+
+  if (recentAlerts && recentAlerts.length > 0) {
+    console.log(`  SSL alert already created for monitor ${monitor.id} in last 24 hours`);
+    return;
+  }
+
+  const { error } = await supabase.from('alerts').insert({
+    monitor_id: monitor.id,
+    type: 'ssl_expiring',
+    severity: daysUntilExpiry <= 7 ? 'critical' : 'warning',
+    status: 'active',
+    message: `SSL certificate for ${monitor.name} expires in ${daysUntilExpiry} days`,
+    created_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    console.error('Failed to create SSL expiry alert:', error);
+    return;
+  }
+
+  console.log(`  Created SSL expiry alert for monitor ${monitor.id} (${daysUntilExpiry} days remaining)`);
 }

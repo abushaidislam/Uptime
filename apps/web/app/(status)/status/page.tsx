@@ -1,4 +1,8 @@
-import { getMonitors, getIncidents } from '~/lib/status-vault/actions';
+import { 
+  getPublicMonitorsForStatusPage, 
+  getPublicStatusPage,
+  getIncidents 
+} from '~/lib/status-vault/actions';
 import { StatusPageContent } from './_components/status-page-content';
 
 export const metadata = {
@@ -7,19 +11,38 @@ export const metadata = {
 };
 
 export default async function PublicStatusPage() {
-  const [monitors, incidents] = await Promise.all([
-    getMonitors(),
+  const [statusPage, monitors, allIncidents] = await Promise.all([
+    getPublicStatusPage(),
+    getPublicMonitorsForStatusPage(),
     getIncidents(),
   ]);
 
-  const publicMonitors = monitors.filter(m => m.status !== 'paused');
-  const recentIncidents = incidents
-    .filter(i => !i.resolvedAt || new Date(i.resolvedAt).getTime() > Date.now() - 30 * 24 * 60 * 60 * 1000)
+  // Filter incidents based on status page config
+  const incidentHistoryDays = statusPage?.incidentHistoryDays || 30;
+  const cutoffDate = Date.now() - incidentHistoryDays * 24 * 60 * 60 * 1000;
+  
+  const recentIncidents = allIncidents
+    .filter(i => new Date(i.startedAt).getTime() > cutoffDate)
     .slice(0, 10);
+
+  if (!statusPage || !statusPage.isPublic) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">Status Page Not Available</h1>
+          <p className="text-muted-foreground">This status page is not configured or not public.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      <StatusPageContent monitors={publicMonitors} incidents={recentIncidents} />
+      <StatusPageContent 
+        statusPage={statusPage}
+        monitors={monitors} 
+        incidents={recentIncidents} 
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use server';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
+import type { Json } from '~/lib/database.types';
 import type {
   Monitor,
   Incident,
@@ -12,6 +13,8 @@ import type {
   IncidentStatus,
   AlertSeverity,
   IncidentUpdate,
+  NotificationChannel,
+  StatusPage,
 } from '~/lib/status-vault/types';
 
 // Helper to convert DB snake_case to camelCase
@@ -95,6 +98,33 @@ function toIncidentUpdate(row: Record<string, unknown>): IncidentUpdate {
     status: row.status as IncidentStatus,
     createdAt: row.created_at as string,
     createdBy: row.created_by as string,
+  };
+}
+
+function toNotificationChannel(row: Record<string, unknown>): NotificationChannel {
+  return {
+    id: row.id as string,
+    type: row.type as NotificationChannel['type'],
+    name: row.name as string,
+    enabled: row.enabled as boolean,
+    config: row.config as NotificationChannel['config'],
+  };
+}
+
+function toStatusPage(row: Record<string, unknown>): StatusPage {
+  return {
+    id: row.id as string,
+    teamId: row.team_id as string,
+    slug: row.slug as string,
+    title: row.title as string,
+    description: row.description as string | undefined,
+    logoUrl: row.logo_url as string | undefined,
+    isPublic: row.is_public as boolean,
+    customDomain: row.custom_domain as string | undefined,
+    selectedMonitors: (row.selected_monitors as string[]) || [],
+    incidentHistoryDays: row.incident_history_days as number,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
   };
 }
 
@@ -582,4 +612,220 @@ export async function resolveAllAlerts(): Promise<void> {
       resolved_at: new Date().toISOString(),
     })
     .neq('status', 'resolved');
+}
+
+// Notification Channel Actions
+export async function getNotificationChannels(): Promise<NotificationChannel[]> {
+  const client = getSupabaseServerClient();
+  const { data, error } = await client
+    .from('notification_channels')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(toNotificationChannel);
+}
+
+export async function getNotificationChannel(id: string): Promise<NotificationChannel | undefined> {
+  const client = getSupabaseServerClient();
+  const { data, error } = await client
+    .from('notification_channels')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return undefined;
+  return toNotificationChannel(data);
+}
+
+export async function createNotificationChannel(data: {
+  type: NotificationChannel['type'];
+  name: string;
+  config: NotificationChannel['config'];
+}): Promise<NotificationChannel> {
+  const client = getSupabaseServerClient();
+  const { data: { user } } = await client.auth.getUser();
+  
+  // Get user's team
+  const { data: teamMember } = await client
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', user?.id ?? '')
+    .single();
+  
+  const teamId = teamMember?.team_id;
+  
+  const { data: channel, error } = await client
+    .from('notification_channels')
+    .insert({
+      team_id: teamId || user?.id || 'unknown',
+      type: data.type,
+      name: data.name,
+      enabled: true,
+      config: data.config as unknown as Json,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return toNotificationChannel(channel);
+}
+
+export async function updateNotificationChannel(
+  id: string,
+  data: Partial<NotificationChannel>
+): Promise<NotificationChannel | undefined> {
+  const client = getSupabaseServerClient();
+  
+  const updateData: Record<string, unknown> = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.enabled !== undefined) updateData.enabled = data.enabled;
+  if (data.config !== undefined) updateData.config = data.config;
+  
+  const { data: channel, error } = await client
+    .from('notification_channels')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error || !channel) return undefined;
+  return toNotificationChannel(channel);
+}
+
+export async function toggleNotificationChannel(id: string): Promise<NotificationChannel | undefined> {
+  const channel = await getNotificationChannel(id);
+  if (!channel) return undefined;
+  
+  return updateNotificationChannel(id, { enabled: !channel.enabled });
+}
+
+export async function deleteNotificationChannel(id: string): Promise<boolean> {
+  const client = getSupabaseServerClient();
+  const { error } = await client
+    .from('notification_channels')
+    .delete()
+    .eq('id', id);
+
+  return !error;
+}
+
+// Status Page Actions
+export async function getStatusPage(): Promise<StatusPage | undefined> {
+  const client = getSupabaseServerClient();
+  const { data: { user } } = await client.auth.getUser();
+  
+  // Get user's team
+  const { data: teamMember } = await client
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', user?.id ?? '')
+    .single();
+  
+  const teamId = teamMember?.team_id || user?.id || 'unknown';
+  
+  const { data, error } = await client
+    .from('status_pages')
+    .select('*')
+    .eq('team_id', teamId)
+    .single();
+
+  if (error || !data) return undefined;
+  return toStatusPage(data);
+}
+
+export async function upsertStatusPage(data: {
+  title: string;
+  description?: string;
+  logoUrl?: string;
+  isPublic: boolean;
+  customDomain?: string;
+  selectedMonitors: string[];
+  incidentHistoryDays: number;
+}): Promise<StatusPage> {
+  const client = getSupabaseServerClient();
+  const { data: { user } } = await client.auth.getUser();
+  
+  // Get user's team
+  const { data: teamMember } = await client
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', user?.id ?? '')
+    .single();
+  
+  const teamId = teamMember?.team_id || user?.id || 'unknown';
+  
+  // Check if status page exists
+  const existing = await getStatusPage();
+  
+  if (existing) {
+    const { data: statusPage, error } = await client
+      .from('status_pages')
+      .update({
+        title: data.title,
+        description: data.description,
+        logo_url: data.logoUrl,
+        is_public: data.isPublic,
+        custom_domain: data.customDomain,
+        selected_monitors: data.selectedMonitors,
+        incident_history_days: data.incidentHistoryDays,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return toStatusPage(statusPage);
+  } else {
+    const slug = `status-${Date.now()}`;
+    const { data: statusPage, error } = await client
+      .from('status_pages')
+      .insert({
+        team_id: teamId,
+        slug,
+        title: data.title,
+        description: data.description,
+        logo_url: data.logoUrl,
+        is_public: data.isPublic,
+        custom_domain: data.customDomain,
+        selected_monitors: data.selectedMonitors,
+        incident_history_days: data.incidentHistoryDays || 30,
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return toStatusPage(statusPage);
+  }
+}
+
+// Public Status Page (no auth required)
+export async function getPublicStatusPage(): Promise<StatusPage | undefined> {
+  const client = getSupabaseServerClient();
+  
+  const { data, error } = await client
+    .from('status_pages')
+    .select('*')
+    .eq('is_public', true)
+    .single();
+
+  if (error || !data) return undefined;
+  return toStatusPage(data);
+}
+
+export async function getPublicMonitorsForStatusPage(): Promise<Monitor[]> {
+  const statusPage = await getPublicStatusPage();
+  if (!statusPage || !statusPage.selectedMonitors?.length) return [];
+  
+  const client = getSupabaseServerClient();
+  const { data, error } = await client
+    .from('monitors')
+    .select('*')
+    .in('id', statusPage.selectedMonitors)
+    .neq('status', 'paused')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(toMonitor);
 }
