@@ -1,49 +1,50 @@
-import forge from 'node-forge';
+import type { DetailedPeerCertificate } from 'tls';
+import { connect } from 'tls';
+
 import type { SSLInfo } from '../types.js';
 import type { SSLChecker } from './interfaces.js';
-import { connect } from 'tls';
 
 export class SslChecker implements SSLChecker {
   async check(url: string, timeout: number): Promise<SSLInfo> {
     try {
       const hostname = this.extractHostname(url);
       const port = this.extractPort(url);
+      const certificate = await this.getCertificate(
+        hostname,
+        port,
+        timeout * 1000,
+      );
 
-      const certificate = await this.getCertificate(hostname, port, timeout * 1000);
-      
-      if (!certificate) {
+      if (!certificate?.valid_to) {
         return {
           valid: false,
           error: 'Could not retrieve SSL certificate',
         };
       }
 
-      const parsed = forge.pki.certificateFromPem(certificate);
-      const validity = parsed.validity;
-      
-      if (!validity.notAfter) {
+      const notAfter = new Date(certificate.valid_to);
+
+      if (Number.isNaN(notAfter.getTime())) {
         return {
           valid: false,
-          error: 'Invalid certificate - no expiry date found',
+          error: 'Invalid certificate expiry date',
         };
       }
 
-      const expiryDate = validity.notAfter.toISOString();
       const daysUntilExpiry = Math.ceil(
-        (validity.notAfter.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        (notAfter.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
       );
-
-      const issuer = parsed.issuer.getField('CN')?.value || 'Unknown';
 
       return {
         valid: daysUntilExpiry > 0,
-        expiryDate,
+        expiryDate: notAfter.toISOString(),
         daysUntilExpiry,
-        issuer,
+        issuer: this.getIssuerName(certificate),
         error: daysUntilExpiry <= 0 ? 'SSL certificate has expired' : undefined,
       };
     } catch (error) {
       let errorMessage = 'SSL check failed';
+
       if (error instanceof Error) {
         if (error.message.includes('ECONNREFUSED')) {
           errorMessage = 'Connection refused - cannot check SSL';
@@ -62,35 +63,32 @@ export class SslChecker implements SSLChecker {
   }
 
   private extractHostname(url: string): string {
-    // Remove protocol if present
     let cleanUrl = url.replace(/^https?:\/\//, '');
-    // Remove path, query, fragment
-    const pathParts = cleanUrl.split('/');
-    cleanUrl = pathParts[0] ?? cleanUrl;
-    const queryParts = cleanUrl.split('?');
-    cleanUrl = queryParts[0] ?? cleanUrl;
-    const fragParts = cleanUrl.split('#');
-    cleanUrl = fragParts[0] ?? cleanUrl;
-    // Remove port if present
+    cleanUrl = cleanUrl.split('/')[0] ?? cleanUrl;
+    cleanUrl = cleanUrl.split('?')[0] ?? cleanUrl;
+    cleanUrl = cleanUrl.split('#')[0] ?? cleanUrl;
     return cleanUrl.split(':')[0] ?? cleanUrl;
   }
 
   private extractPort(url: string): number {
-    if (url.startsWith('https://')) return 443;
-    
+    if (url.startsWith('https://')) {
+      return 443;
+    }
+
     const match = url.match(/:\d+/);
+
     if (match) {
       return parseInt(match[0].slice(1), 10);
     }
-    
-    return 443; // Default to HTTPS
+
+    return 443;
   }
 
   private getCertificate(
     hostname: string,
     port: number,
-    timeoutMs: number
-  ): Promise<string | null> {
+    timeoutMs: number,
+  ): Promise<DetailedPeerCertificate | null> {
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new Error('ETIMEDOUT'));
@@ -99,29 +97,21 @@ export class SslChecker implements SSLChecker {
       try {
         const socket = connect({
           host: hostname,
-          port: port,
-          rejectUnauthorized: false, // Allow self-signed for checking
+          port,
+          rejectUnauthorized: false,
+          servername: hostname,
         });
 
         socket.on('secureConnect', () => {
           clearTimeout(timeoutId);
           const cert = socket.getPeerCertificate(true);
           socket.end();
-          
-          if (cert && cert.raw) {
-            const pemCert = forge.pki.certificateToPem(
-              forge.pki.certificateFromAsn1(
-                forge.asn1.fromDer(cert.raw.toString('binary'))
-              )
-            );
-            resolve(pemCert);
-          } else {
-            resolve(null);
-          }
+          resolve(cert && Object.keys(cert).length > 0 ? cert : null);
         });
 
         socket.on('error', (err: Error) => {
           clearTimeout(timeoutId);
+          socket.destroy();
           reject(err);
         });
       } catch (err) {
@@ -129,5 +119,15 @@ export class SslChecker implements SSLChecker {
         reject(err);
       }
     });
+  }
+
+  private getIssuerName(certificate: DetailedPeerCertificate): string {
+    const issuer = certificate.issuer;
+
+    if (!issuer) {
+      return 'Unknown';
+    }
+
+    return issuer.CN || issuer.O || issuer.OU || 'Unknown';
   }
 }

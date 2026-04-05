@@ -37,22 +37,14 @@ The SMTP variables are required only if you want email notification channels to 
 
 ### Email Templates
 
-The worker now includes reusable HTML email templates and bundled assets:
+The worker now renders email notifications from self-contained HTML templates in code so they stay safe inside the Vercel bundle.
+
+Reference design files and assets still live in:
 
 ```text
 src/email/templates/
 src/email/assets/
 ```
-
-Current templates:
-
-- `monitor-down.html`
-- `monitor-recovered.html`
-- `ssl-expiring.html`
-- `team-invite.html`
-- `weekly-uptime-report.html`
-
-During `pnpm build`, the `src/email` folder is copied into `dist/email` so the compiled worker can still load the HTML files and images.
 
 ### Development
 

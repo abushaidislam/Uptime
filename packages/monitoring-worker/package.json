@@ -23,7 +23,7 @@
     "lint": "eslint .",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc && node ./scripts/copy-email-assets.mjs",
+    "build": "tsc",
     "start": "node dist/worker.js",
     "dev": "dotenv -e .env.development -- tsx src/worker.ts"
   },

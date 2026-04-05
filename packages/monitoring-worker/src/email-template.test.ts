@@ -43,7 +43,7 @@ function createAlert(overrides: Partial<Alert> = {}): Alert {
   };
 }
 
-test('buildAlertEmail renders monitor outage HTML with attachments', () => {
+test('buildAlertEmail renders monitor outage HTML without runtime file access', () => {
   const email = buildAlertEmail(
     createAlert(),
     createMonitor({ lastResponseTime: 842 }),
@@ -52,8 +52,8 @@ test('buildAlertEmail renders monitor outage HTML with attachments', () => {
   assert.equal(email.templateId, 'monitor-down');
   assert.match(email.subject, /Primary API is down/);
   assert.match(email.html, /Primary API/);
-  assert.match(email.html, /cid:logo-mark/);
-  assert.equal(email.attachments.length, 3);
+  assert.match(email.html, /Outage detected/);
+  assert.equal(email.attachments.length, 0);
 });
 
 test('buildAlertEmail switches template for SSL warnings', () => {

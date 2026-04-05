@@ -1,21 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import type { Alert, Monitor } from './types.js';
 
 const DEFAULT_APP_URL = 'https://uptime.flinkeo.online';
 const DEFAULT_BRAND_NAME = 'Uptime by Flinkeo';
-const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const EMAIL_ROOT = path.join(MODULE_DIR, 'email');
-const TEMPLATE_ROOT = path.join(EMAIL_ROOT, 'templates');
-const ASSET_ROOT = path.join(EMAIL_ROOT, 'assets');
-
-type TemplateAssetId =
-  | 'logo-mark'
-  | 'wordmark'
-  | 'hero-monitoring'
-  | 'hero-report';
 
 export type EmailTemplateId =
   | 'monitor-down'
@@ -60,102 +46,36 @@ export interface WeeklyUptimeReportInput {
   uptimeAverage: string;
 }
 
-interface TemplateDefinition {
-  assetIds: TemplateAssetId[];
-  fileName: string;
-}
-
-interface TemplateRenderInput {
-  rawValues?: Record<string, string>;
-  subject: string;
-  templateId: EmailTemplateId;
-  text: string;
-  values: Record<string, string>;
-}
-
-const assetManifest: Record<
-  TemplateAssetId,
-  Omit<EmailAttachment, 'path'>
-> = {
-  'hero-monitoring': {
-    cid: 'hero-monitoring',
-    contentType: 'image/jpeg',
-    filename: 'hero-monitoring.jpg',
-  },
-  'hero-report': {
-    cid: 'hero-report',
-    contentType: 'image/jpeg',
-    filename: 'hero-report.jpg',
-  },
-  'logo-mark': {
-    cid: 'logo-mark',
-    contentType: 'image/png',
-    filename: 'logo-mark.png',
-  },
-  wordmark: {
-    cid: 'wordmark',
-    contentType: 'image/png',
-    filename: 'wordmark.png',
-  },
-};
-
-const templateDefinitions: Record<EmailTemplateId, TemplateDefinition> = {
-  'monitor-down': {
-    assetIds: ['logo-mark', 'wordmark', 'hero-monitoring'],
-    fileName: 'monitor-down.html',
-  },
-  'monitor-recovered': {
-    assetIds: ['logo-mark', 'wordmark', 'hero-monitoring'],
-    fileName: 'monitor-recovered.html',
-  },
-  'ssl-expiring': {
-    assetIds: ['logo-mark', 'wordmark', 'hero-monitoring'],
-    fileName: 'ssl-expiring.html',
-  },
-  'team-invite': {
-    assetIds: ['logo-mark', 'wordmark', 'hero-monitoring'],
-    fileName: 'team-invite.html',
-  },
-  'weekly-uptime-report': {
-    assetIds: ['logo-mark', 'wordmark', 'hero-report'],
-    fileName: 'weekly-uptime-report.html',
-  },
-};
-
-const templateCache = new Map<EmailTemplateId, string>();
-
 export function buildAlertEmail(
   alert: Alert,
   monitor: Monitor,
 ): AlertEmailContent {
   const appUrl = getAppUrl();
   const templateId = getAlertTemplateId(alert);
-  const baseValues = {
-    app_url: appUrl,
-    brand_name: DEFAULT_BRAND_NAME,
-    event_time: formatDateTime(alert.createdAt),
-    footer_note:
-      'You are receiving this email because this monitor is connected to an active email notification channel.',
-    monitor_name: monitor.name,
-    monitor_status: monitor.status.toUpperCase(),
-    monitor_url: monitor.url,
-    response_time: monitor.lastResponseTime
-      ? `${monitor.lastResponseTime} ms`
-      : 'N/A',
-    severity: alert.severity.toUpperCase(),
-    ssl_expiry: monitor.sslExpiryDate
-      ? formatDateTime(monitor.sslExpiryDate)
-      : 'Not available',
-    subject_line: alert.message,
-    uptime_24h: formatPercent(monitor.uptime24h),
-    uptime_30d: formatPercent(monitor.uptime30d),
-    uptime_7d: formatPercent(monitor.uptime7d),
-  };
+  const sharedFields = [
+    metricRow('Monitor', monitor.name),
+    metricRow('URL', monitor.url),
+    metricRow('Severity', alert.severity.toUpperCase()),
+    metricRow('Triggered', formatDateTime(alert.createdAt)),
+    metricRow(
+      'Response time',
+      monitor.lastResponseTime ? `${monitor.lastResponseTime} ms` : 'N/A',
+    ),
+    metricRow('24h uptime', formatPercent(monitor.uptime24h)),
+    metricRow('7d uptime', formatPercent(monitor.uptime7d)),
+    metricRow('30d uptime', formatPercent(monitor.uptime30d)),
+  ].join('');
 
   switch (templateId) {
     case 'monitor-down':
-      return renderEmailTemplate({
+      return createEmail({
+        body: sharedFields,
+        ctaLabel: 'Open incident dashboard',
+        ctaUrl: `${appUrl}/home`,
+        preheader: alert.message,
         subject: `[${DEFAULT_BRAND_NAME}] ${alert.message}`,
+        summary:
+          'We could not reach this monitor during the latest health check. The service may be unavailable for users right now.',
         templateId,
         text: [
           `${DEFAULT_BRAND_NAME} outage alert`,
@@ -163,72 +83,74 @@ export function buildAlertEmail(
           `Monitor: ${monitor.name}`,
           `URL: ${monitor.url}`,
           `Severity: ${alert.severity.toUpperCase()}`,
-          `Detected at: ${formatDateTime(alert.createdAt)}`,
-          `Response time: ${baseValues.response_time}`,
-          `Open dashboard: ${appUrl}/home/settings/notifications`,
+          `Triggered: ${formatDateTime(alert.createdAt)}`,
+          `Open dashboard: ${appUrl}/home`,
         ].join('\n'),
-        values: {
-          ...baseValues,
-          accent_color: '#c24735',
-          accent_soft: '#fff0ea',
-          badge_label: 'Outage detected',
-          cta_label: 'Open incident dashboard',
-          cta_url: `${appUrl}/home`,
-          headline: alert.message,
-          summary:
-            'We could not reach this monitor during the latest health check. The service may be unavailable for users right now.',
+        tone: {
+          accent: '#c24735',
+          soft: '#fff0ea',
+          badge: 'Outage detected',
         },
+        title: alert.message,
       });
 
     case 'monitor-recovered':
-      return renderEmailTemplate({
+      return createEmail({
+        body: sharedFields,
+        ctaLabel: 'Review service timeline',
+        ctaUrl: `${appUrl}/home`,
+        preheader: `${monitor.name} is back online`,
         subject: `[${DEFAULT_BRAND_NAME}] ${alert.message}`,
+        summary:
+          'The latest health check succeeded and the monitor is responding again. This is a good moment to review the incident timeline and confirm stability.',
         templateId,
         text: [
           `${DEFAULT_BRAND_NAME} recovery alert`,
           '',
           `Monitor: ${monitor.name}`,
           `URL: ${monitor.url}`,
-          `Recovered at: ${formatDateTime(alert.createdAt)}`,
-          `24h uptime: ${baseValues.uptime_24h}`,
+          `Recovered: ${formatDateTime(alert.createdAt)}`,
           `Open dashboard: ${appUrl}/home`,
         ].join('\n'),
-        values: {
-          ...baseValues,
-          accent_color: '#1f8f5f',
-          accent_soft: '#eefaf4',
-          badge_label: 'Service recovered',
-          cta_label: 'Review service timeline',
-          cta_url: `${appUrl}/home`,
-          headline: `${monitor.name} is back online`,
-          summary:
-            'The latest health check succeeded and the monitor is responding again. This is a good moment to review the incident timeline and confirm stability.',
+        tone: {
+          accent: '#1f8f5f',
+          soft: '#eefaf4',
+          badge: 'Service recovered',
         },
+        title: `${monitor.name} is back online`,
       });
 
     case 'ssl-expiring':
-      return renderEmailTemplate({
+      return createEmail({
+        body:
+          sharedFields +
+          metricRow(
+            'SSL expiry',
+            monitor.sslExpiryDate ? formatDateTime(monitor.sslExpiryDate) : 'Not available',
+          ),
+        ctaLabel: 'Review certificate details',
+        ctaUrl: `${appUrl}/home`,
+        preheader: alert.message,
         subject: `[${DEFAULT_BRAND_NAME}] ${alert.message}`,
+        summary:
+          'This SSL certificate is approaching its expiry date. Renew it before the deadline to avoid browser warnings or downtime.',
         templateId,
         text: [
           `${DEFAULT_BRAND_NAME} SSL expiry warning`,
           '',
           `Monitor: ${monitor.name}`,
-          `Certificate expiry: ${baseValues.ssl_expiry}`,
-          `Triggered at: ${formatDateTime(alert.createdAt)}`,
+          `SSL expiry: ${
+            monitor.sslExpiryDate ? formatDateTime(monitor.sslExpiryDate) : 'Not available'
+          }`,
+          `Triggered: ${formatDateTime(alert.createdAt)}`,
           `Open dashboard: ${appUrl}/home`,
         ].join('\n'),
-        values: {
-          ...baseValues,
-          accent_color: '#c9831a',
-          accent_soft: '#fff6e8',
-          badge_label: 'SSL reminder',
-          cta_label: 'Review certificate details',
-          cta_url: `${appUrl}/home`,
-          headline: alert.message,
-          summary:
-            'This SSL certificate is approaching its expiry date. Renew it before the deadline to avoid browser warnings or downtime.',
+        tone: {
+          accent: '#c9831a',
+          soft: '#fff6e8',
+          badge: 'SSL reminder',
         },
+        title: alert.message,
       });
 
     default:
@@ -242,8 +164,17 @@ export function buildTeamInviteEmail(
   const appUrl = input.appUrl ?? getAppUrl();
   const brandName = input.brandName ?? DEFAULT_BRAND_NAME;
 
-  return renderEmailTemplate({
+  return createEmail({
+    body: [
+      metricRow('Workspace', input.teamName),
+      metricRow('Invited by', input.inviterName),
+      metricRow('Recipient', input.recipientEmail),
+    ].join(''),
+    ctaLabel: 'Accept invite',
+    ctaUrl: input.acceptUrl,
+    preheader: `${input.inviterName} invited you to join ${input.teamName}`,
     subject: `[${brandName}] Join ${input.teamName}`,
+    summary: `${input.inviterName} invited you to join the ${input.teamName} workspace so you can help manage monitors and incidents together.`,
     templateId: 'team-invite',
     text: [
       `${input.inviterName} invited you to join ${input.teamName} on ${brandName}.`,
@@ -251,18 +182,12 @@ export function buildTeamInviteEmail(
       `Accept invite: ${input.acceptUrl}`,
       `Recipient: ${input.recipientEmail}`,
     ].join('\n'),
-    values: {
-      accept_url: input.acceptUrl,
-      app_url: appUrl,
-      brand_name: brandName,
-      footer_note:
-        'Accept the invitation to collaborate on incidents, monitors, and status communication.',
-      headline: `Join ${input.teamName}`,
-      inviter_name: input.inviterName,
-      recipient_email: input.recipientEmail,
-      summary: `${input.inviterName} invited you to join the ${input.teamName} workspace so you can help manage monitors and incidents together.`,
-      team_name: input.teamName,
+    tone: {
+      accent: '#142033',
+      soft: '#eef2f8',
+      badge: 'Workspace invite',
     },
+    title: `Join ${input.teamName}`,
   });
 }
 
@@ -272,18 +197,28 @@ export function buildWeeklyUptimeReportEmail(
   const appUrl = input.appUrl ?? getAppUrl();
   const brandName = input.brandName ?? DEFAULT_BRAND_NAME;
 
-  return renderEmailTemplate({
-    rawValues: {
-      incident_rows: input.incidentsSummary
-        .map(
-          (item) =>
-            `<tr><td style="padding:0 0 10px;color:#52606d;font-size:14px;line-height:1.6;">${escapeHtml(
-              item,
-            )}</td></tr>`,
-        )
-        .join(''),
-    },
+  return createEmail({
+    body:
+      [
+        metricRow('Report period', input.reportPeriodLabel),
+        metricRow('Team', input.teamName),
+        metricRow('Monitors checked', String(input.monitorsChecked)),
+        metricRow('Healthy monitors', String(input.healthyMonitors)),
+        metricRow('Average uptime', input.uptimeAverage),
+        metricRow('Average response time', input.averageResponseTime),
+      ].join('') +
+      sectionBlock(
+        'Incident highlights',
+        `<ul style="margin:0;padding-left:18px;color:#52606d;font-size:14px;line-height:1.7;">${input.incidentsSummary
+          .map((item) => `<li>${escapeHtml(item)}</li>`)
+          .join('')}</ul>`,
+      ),
+    ctaLabel: 'Open uptime dashboard',
+    ctaUrl: `${appUrl}/home`,
+    preheader: `Weekly uptime report for ${input.teamName}`,
     subject: `[${brandName}] Weekly uptime report for ${input.teamName}`,
+    summary:
+      'Here is your latest reliability snapshot across all active monitors, including uptime trends and incident notes worth revisiting.',
     templateId: 'weekly-uptime-report',
     text: [
       `${brandName} weekly uptime report`,
@@ -297,36 +232,93 @@ export function buildWeeklyUptimeReportEmail(
       '',
       ...input.incidentsSummary.map((item) => `- ${item}`),
     ].join('\n'),
-    values: {
-      app_url: appUrl,
-      average_response_time: input.averageResponseTime,
-      brand_name: brandName,
-      cta_label: 'Open uptime dashboard',
-      cta_url: `${appUrl}/home`,
-      footer_note:
-        'Use this report to spot recurring reliability issues before they become customer-facing incidents.',
-      healthy_monitors: String(input.healthyMonitors),
-      headline: `Weekly uptime report for ${input.teamName}`,
-      monitors_checked: String(input.monitorsChecked),
-      report_period: input.reportPeriodLabel,
-      summary:
-        'Here is your latest reliability snapshot across all active monitors, including uptime trends and incident notes worth revisiting.',
-      team_name: input.teamName,
-      uptime_average: input.uptimeAverage,
+    tone: {
+      accent: '#142033',
+      soft: '#eef2f8',
+      badge: 'Weekly report',
     },
+    title: `Weekly uptime report for ${input.teamName}`,
   });
 }
 
-function renderEmailTemplate(input: TemplateRenderInput): AlertEmailContent {
-  const template = loadTemplate(input.templateId);
-  const html = applyTemplateValues(
-    template,
-    input.values,
-    input.rawValues ?? {},
-  );
+function createEmail(input: {
+  body: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  preheader: string;
+  subject: string;
+  summary: string;
+  templateId: EmailTemplateId;
+  text: string;
+  title: string;
+  tone: {
+    accent: string;
+    badge: string;
+    soft: string;
+  };
+}): AlertEmailContent {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>${escapeHtml(input.subject)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f2f3f7;font-family:Arial,Helvetica,sans-serif;color:#17202a;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(input.preheader)}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f2f3f7;">
+      <tr>
+        <td align="center" style="padding:24px 14px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;border-collapse:collapse;">
+            <tr>
+              <td style="padding:0 0 14px;font-size:14px;color:#5b6672;font-weight:700;">
+                ${escapeHtml(DEFAULT_BRAND_NAME)}
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#ffffff;border-radius:28px;overflow:hidden;border:1px solid #e6e9f0;">
+                <div style="background:linear-gradient(135deg,#17202a 0%,#243447 100%);padding:28px;">
+                  <span style="display:inline-block;background:${escapeHtml(
+                    input.tone.soft,
+                  )};color:${escapeHtml(
+                    input.tone.accent,
+                  )};padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(
+                    input.tone.badge,
+                  )}</span>
+                  <h1 style="margin:18px 0 12px;font-size:30px;line-height:1.15;color:#ffffff;">${escapeHtml(
+                    input.title,
+                  )}</h1>
+                  <p style="margin:0;font-size:15px;line-height:1.75;color:#dbe4ee;">${escapeHtml(
+                    input.summary,
+                  )}</p>
+                </div>
+                <div style="padding:28px;">
+                  ${input.body}
+                  <div style="padding-top:20px;">
+                    <a href="${escapeAttribute(
+                      input.ctaUrl,
+                    )}" style="display:inline-block;background:${escapeHtml(
+                      input.tone.accent,
+                    )};color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:999px;font-size:14px;font-weight:700;">${escapeHtml(
+                      input.ctaLabel,
+                    )}</a>
+                  </div>
+                  <p style="margin:18px 0 0;font-size:13px;line-height:1.7;color:#6b7785;">
+                    You are receiving this email because this monitor is connected to an active email notification channel.
+                  </p>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 
   return {
-    attachments: getTemplateAttachments(input.templateId),
+    attachments: [],
     html,
     subject: input.subject,
     templateId: input.templateId,
@@ -334,47 +326,18 @@ function renderEmailTemplate(input: TemplateRenderInput): AlertEmailContent {
   };
 }
 
-function loadTemplate(templateId: EmailTemplateId): string {
-  const cached = templateCache.get(templateId);
-
-  if (cached) {
-    return cached;
-  }
-
-  const templatePath = path.join(
-    TEMPLATE_ROOT,
-    templateDefinitions[templateId].fileName,
-  );
-  const template = fs.readFileSync(templatePath, 'utf8');
-  templateCache.set(templateId, template);
-  return template;
+function metricRow(label: string, value: string): string {
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#fcfdfd;border:1px solid #edf0f4;border-radius:18px;margin-bottom:12px;"><tr><td style="padding:16px 18px;color:#607080;">${escapeHtml(
+    label,
+  )}</td><td align="right" style="padding:16px 18px;color:#17202a;font-weight:700;">${escapeHtml(
+    value,
+  )}</td></tr></table>`;
 }
 
-function getTemplateAttachments(templateId: EmailTemplateId): EmailAttachment[] {
-  return templateDefinitions[templateId].assetIds.map((assetId) => {
-    const asset = assetManifest[assetId];
-
-    return {
-      ...asset,
-      path: path.join(ASSET_ROOT, asset.filename),
-    };
-  });
-}
-
-function applyTemplateValues(
-  template: string,
-  values: Record<string, string>,
-  rawValues: Record<string, string>,
-): string {
-  let rendered = template.replace(/\{\{\{(\w+)\}\}\}/g, (_, key: string) => {
-    return rawValues[key] ?? '';
-  });
-
-  rendered = rendered.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
-    return escapeHtml(values[key] ?? '');
-  });
-
-  return rendered;
+function sectionBlock(title: string, body: string): string {
+  return `<div style="background:#fcfdfd;border:1px solid #edf0f4;border-radius:18px;padding:18px;margin-top:12px;"><div style="padding-bottom:10px;font-size:15px;font-weight:700;color:#17202a;">${escapeHtml(
+    title,
+  )}</div>${body}</div>`;
 }
 
 function getAlertTemplateId(alert: Alert): Extract<
@@ -422,6 +385,10 @@ function escapeHtml(value: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value);
 }
 
 function assertNever(value: never): never {
