@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 
 import type { NotificationChannel } from '~/lib/status-vault/types';
 import {
@@ -20,6 +21,10 @@ export function useNotificationChannels() {
     try {
       const data = await getNotificationChannels();
       setChannels(data);
+    } catch (error) {
+      console.error('Failed to load notification channels', error);
+      setChannels([]);
+      toast.error('Failed to load notification channels');
     } finally {
       setIsLoading(false);
     }

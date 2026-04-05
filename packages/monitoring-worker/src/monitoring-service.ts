@@ -369,7 +369,7 @@ async function handleMonitorRecovery(
         incident_id: incident.id,
         message: `Monitor ${monitor.name} has recovered and is now up`,
         status: 'monitoring',
-        created_by: 'system',
+        created_by: monitor.userId,
         created_at: new Date().toISOString(),
       });
 
@@ -414,14 +414,14 @@ async function maybeCreateSslExpiryAlert(
     return;
   }
 
-  const { error } = await supabase.from('alerts').insert({
+  const { data: alert, error } = await supabase.from('alerts').insert({
     monitor_id: monitor.id,
     type: 'ssl_expiring',
     severity: daysUntilExpiry <= 7 ? 'critical' : 'warning',
     status: 'active',
     message: `SSL certificate for ${monitor.name} expires in ${daysUntilExpiry} days`,
     created_at: new Date().toISOString(),
-  });
+  }).select().single();
 
   if (error) {
     console.error('Failed to create SSL expiry alert:', error);
@@ -429,4 +429,8 @@ async function maybeCreateSslExpiryAlert(
   }
 
   console.log(`  Created SSL expiry alert for monitor ${monitor.id} (${daysUntilExpiry} days remaining)`);
+
+  if (alert) {
+    await dispatchAlertNotifications(supabase, alert, monitor);
+  }
 }

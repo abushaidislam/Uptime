@@ -1,5 +1,6 @@
 'use server';
 
+import { getSupabaseServerAdminClient } from '@kit/supabase/server-admin-client';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 import type { Json } from '~/lib/database.types';
 import type {
@@ -129,6 +130,10 @@ function toStatusPage(row: Record<string, unknown>): StatusPage {
   };
 }
 
+function createPersonalTeamSlug(userId: string) {
+  return `status-vault-${userId.slice(0, 8)}`;
+}
+
 async function getOwnedTeamId(
   client: any,
   userId: string | undefined,
@@ -148,6 +153,89 @@ async function getOwnedTeamId(
   }
 
   return data.id as string;
+}
+
+async function getMemberTeamId(
+  client: any,
+  userId: string | undefined,
+): Promise<string | undefined> {
+  if (!userId) {
+    return undefined;
+  }
+
+  const { data, error } = await client
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return undefined;
+  }
+
+  return data.team_id as string;
+}
+
+async function createPersonalTeam(
+  client: any,
+  user: { id?: string; email?: string | null } | null | undefined,
+): Promise<string | undefined> {
+  if (!user?.id) {
+    return undefined;
+  }
+
+  const teamName = user.email
+    ? `${user.email.split('@')[0]}'s Team`
+    : 'Personal Team';
+
+  const { data: team, error: teamError } = await client
+    .from('teams')
+    .insert({
+      name: teamName,
+      slug: createPersonalTeamSlug(user.id),
+      owner_id: user.id,
+    })
+    .select('id')
+    .single();
+
+  if (teamError || !team) {
+    return undefined;
+  }
+
+  await client
+    .from('team_members')
+    .insert({
+      user_id: user.id,
+      team_id: team.id,
+      role: 'owner',
+    });
+
+  return team.id as string;
+}
+
+async function resolveCurrentTeamId(
+  client: any,
+  user: { id?: string; email?: string | null } | null | undefined,
+  options?: { createIfMissing?: boolean },
+): Promise<string | undefined> {
+  const ownedTeamId = await getOwnedTeamId(client, user?.id);
+
+  if (ownedTeamId) {
+    return ownedTeamId;
+  }
+
+  const memberTeamId = await getMemberTeamId(client, user?.id);
+
+  if (memberTeamId) {
+    return memberTeamId;
+  }
+
+  if (options?.createIfMissing) {
+    return createPersonalTeam(client, user);
+  }
+
+  return undefined;
 }
 
 // Monitor Actions
@@ -184,6 +272,9 @@ export async function createMonitor(data: {
 }): Promise<Monitor> {
   const client = getSupabaseServerClient();
   const { data: { user } } = await client.auth.getUser();
+  const teamId = await resolveCurrentTeamId(client, user, {
+    createIfMissing: true,
+  });
   
   const { data: monitor, error } = await client
     .from('monitors')
@@ -196,6 +287,7 @@ export async function createMonitor(data: {
       expected_status: data.expectedStatus,
       status: 'pending',
       user_id: user?.id || 'unknown',
+      team_id: teamId,
       uptime_24h: 100,
       uptime_7d: 100,
       uptime_30d: 100,
@@ -639,9 +731,19 @@ export async function resolveAllAlerts(): Promise<void> {
 // Notification Channel Actions
 export async function getNotificationChannels(): Promise<NotificationChannel[]> {
   const client = getSupabaseServerClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  const teamId = await resolveCurrentTeamId(client, user);
+
+  if (!teamId) {
+    return [];
+  }
+
   const { data, error } = await client
     .from('notification_channels')
     .select('*')
+    .eq('team_id', teamId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -667,10 +769,12 @@ export async function createNotificationChannel(data: {
 }): Promise<NotificationChannel> {
   const client = getSupabaseServerClient();
   const { data: { user } } = await client.auth.getUser();
-  const teamId = await getOwnedTeamId(client, user?.id);
+  const teamId = await resolveCurrentTeamId(client, user, {
+    createIfMissing: true,
+  });
 
   if (!teamId) {
-    throw new Error('No owned team found for the current user.');
+    throw new Error('Unable to resolve a team for the current user.');
   }
   
   const { data: channel, error } = await client
@@ -732,7 +836,7 @@ export async function deleteNotificationChannel(id: string): Promise<boolean> {
 export async function getStatusPage(): Promise<StatusPage | undefined> {
   const client = getSupabaseServerClient();
   const { data: { user } } = await client.auth.getUser();
-  const teamId = await getOwnedTeamId(client, user?.id);
+  const teamId = await resolveCurrentTeamId(client, user);
 
   if (!teamId) {
     return undefined;
@@ -759,10 +863,12 @@ export async function upsertStatusPage(data: {
 }): Promise<StatusPage> {
   const client = getSupabaseServerClient();
   const { data: { user } } = await client.auth.getUser();
-  const teamId = await getOwnedTeamId(client, user?.id);
+  const teamId = await resolveCurrentTeamId(client, user, {
+    createIfMissing: true,
+  });
 
   if (!teamId) {
-    throw new Error('No owned team found for the current user.');
+    throw new Error('Unable to resolve a team for the current user.');
   }
   
   // Check if status page exists
@@ -812,13 +918,14 @@ export async function upsertStatusPage(data: {
 
 // Public Status Page (no auth required)
 export async function getPublicStatusPage(): Promise<StatusPage | undefined> {
-  const client = getSupabaseServerClient();
+  const client = getSupabaseServerAdminClient();
   
   const { data, error } = await client
     .from('status_pages')
     .select('*')
     .eq('is_public', true)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (error || !data) return undefined;
   return toStatusPage(data);
@@ -828,7 +935,7 @@ export async function getPublicMonitorsForStatusPage(): Promise<Monitor[]> {
   const statusPage = await getPublicStatusPage();
   if (!statusPage || !statusPage.selectedMonitors?.length) return [];
   
-  const client = getSupabaseServerClient();
+  const client = getSupabaseServerAdminClient();
   const { data, error } = await client
     .from('monitors')
     .select('*')
@@ -838,4 +945,42 @@ export async function getPublicMonitorsForStatusPage(): Promise<Monitor[]> {
 
   if (error) throw error;
   return (data || []).map(toMonitor);
+}
+
+export async function getPublicIncidentsForStatusPage(): Promise<Incident[]> {
+  const statusPage = await getPublicStatusPage();
+
+  if (!statusPage || !statusPage.selectedMonitors?.length) {
+    return [];
+  }
+
+  const client = getSupabaseServerAdminClient();
+  const cutoffDate = new Date(
+    Date.now() - statusPage.incidentHistoryDays * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const { data, error } = await client
+    .from('incidents')
+    .select('*')
+    .in('monitor_id', statusPage.selectedMonitors)
+    .gte('started_at', cutoffDate)
+    .order('started_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  const incidents = await Promise.all(
+    (data || []).map(async (row) => {
+      const { data: updates } = await client
+        .from('incident_updates')
+        .select('*')
+        .eq('incident_id', row.id)
+        .order('created_at', { ascending: true });
+
+      return toIncident(row, (updates || []).map(toIncidentUpdate));
+    }),
+  );
+
+  return incidents;
 }

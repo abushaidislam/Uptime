@@ -1,7 +1,7 @@
 import { 
   getPublicMonitorsForStatusPage, 
   getPublicStatusPage,
-  getIncidents 
+  getPublicIncidentsForStatusPage,
 } from '~/lib/status-vault/actions';
 import { StatusPageContent } from './_components/status-page-content';
 
@@ -11,19 +11,11 @@ export const metadata = {
 };
 
 export default async function PublicStatusPage() {
-  const [statusPage, monitors, allIncidents] = await Promise.all([
+  const [statusPage, monitors, recentIncidents] = await Promise.all([
     getPublicStatusPage(),
     getPublicMonitorsForStatusPage(),
-    getIncidents(),
+    getPublicIncidentsForStatusPage(),
   ]);
-
-  // Filter incidents based on status page config
-  const incidentHistoryDays = statusPage?.incidentHistoryDays || 30;
-  const cutoffDate = Date.now() - incidentHistoryDays * 24 * 60 * 60 * 1000;
-  
-  const recentIncidents = allIncidents
-    .filter(i => new Date(i.startedAt).getTime() > cutoffDate)
-    .slice(0, 10);
 
   if (!statusPage || !statusPage.isPublic) {
     return (

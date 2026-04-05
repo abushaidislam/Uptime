@@ -15,11 +15,21 @@ export async function dispatchAlertNotifications(
     return;
   }
 
+  const teamId = await resolveMonitorTeamId(supabase, monitor);
+
+  if (!teamId) {
+    console.warn(
+      `[AlertDelivery] No team found for monitor ${monitor.id}; skipping notification dispatch`,
+    );
+
+    return;
+  }
+
   // Get team notification channels
   const { data: channels, error } = await supabase
     .from('notification_channels')
     .select('*')
-    .eq('team_id', monitor.teamId || monitor.userId)
+    .eq('team_id', teamId)
     .eq('enabled', true);
 
   if (error) {
@@ -42,6 +52,39 @@ export async function dispatchAlertNotifications(
       console.error(`[AlertDelivery] Failed to dispatch to ${channel.type}:`, err);
     }
   }
+}
+
+async function resolveMonitorTeamId(
+  supabase: SupabaseClient,
+  monitor: Monitor,
+): Promise<string | undefined> {
+  if (monitor.teamId) {
+    return monitor.teamId;
+  }
+
+  const { data: ownedTeam, error: ownedTeamError } = await supabase
+    .from('teams')
+    .select('id')
+    .eq('owner_id', monitor.userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!ownedTeamError && ownedTeam?.id) {
+    return ownedTeam.id as string;
+  }
+
+  const { data: memberTeam, error: memberTeamError } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', monitor.userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!memberTeamError && memberTeam?.team_id) {
+    return memberTeam.team_id as string;
+  }
+
+  return undefined;
 }
 
 async function dispatchToChannel(
