@@ -24,7 +24,35 @@ Automated background monitoring service for StatusVault that performs health che
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=uptime@your-domain.com
+SMTP_PASS=your-smtp-password
+SMTP_FROM_EMAIL=uptime@your-domain.com
+SMTP_FROM_NAME="Uptime by Flinkeo"
 ```
+
+The SMTP variables are required only if you want email notification channels to send real alert emails from the worker.
+
+### Email Templates
+
+The worker now includes reusable HTML email templates and bundled assets:
+
+```text
+src/email/templates/
+src/email/assets/
+```
+
+Current templates:
+
+- `monitor-down.html`
+- `monitor-recovered.html`
+- `ssl-expiring.html`
+- `team-invite.html`
+- `weekly-uptime-report.html`
+
+During `pnpm build`, the `src/email` folder is copied into `dist/email` so the compiled worker can still load the HTML files and images.
 
 ### Development
 

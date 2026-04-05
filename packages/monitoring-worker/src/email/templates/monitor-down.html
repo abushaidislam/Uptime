@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>{{subject_line}}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f2f3f7;font-family:Arial,Helvetica,sans-serif;color:#17202a;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{headline}}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f2f3f7;">
+      <tr>
+        <td align="center" style="padding:24px 14px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;border-collapse:collapse;">
+            <tr>
+              <td style="padding:0 0 14px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td align="left" style="vertical-align:middle;">
+                      <img src="cid:logo-mark" width="44" alt="{{brand_name}}" style="display:block;border:0;" />
+                    </td>
+                    <td align="right" style="vertical-align:middle;">
+                      <img src="cid:wordmark" width="124" alt="{{brand_name}}" style="display:block;border:0;" />
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#ffffff;border-radius:28px;overflow:hidden;border:1px solid #e6e9f0;">
+                <img src="cid:hero-monitoring" width="620" alt="Monitoring alert" style="display:block;width:100%;height:auto;border:0;" />
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td style="padding:28px 28px 18px;">
+                      <span style="display:inline-block;background:{{accent_soft}};color:{{accent_color}};padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">{{badge_label}}</span>
+                      <h1 style="margin:18px 0 12px;font-size:30px;line-height:1.15;color:#142033;">{{headline}}</h1>
+                      <p style="margin:0;font-size:15px;line-height:1.75;color:#4d5a67;">{{summary}}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 28px 22px;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-spacing:0 12px;">
+                        <tr>
+                          <td style="width:50%;background:#fbfbfd;border:1px solid #edf0f4;border-radius:18px;padding:16px;">
+                            <div style="font-size:12px;color:#7c8793;letter-spacing:0.08em;text-transform:uppercase;">Monitor</div>
+                            <div style="padding-top:8px;font-size:18px;font-weight:700;color:#17202a;">{{monitor_name}}</div>
+                            <div style="padding-top:8px;font-size:14px;line-height:1.6;color:#4d5a67;word-break:break-word;">{{monitor_url}}</div>
+                          </td>
+                          <td style="width:50%;background:#fbfbfd;border:1px solid #edf0f4;border-radius:18px;padding:16px;">
+                            <div style="font-size:12px;color:#7c8793;letter-spacing:0.08em;text-transform:uppercase;">Detected</div>
+                            <div style="padding-top:8px;font-size:18px;font-weight:700;color:#17202a;">{{event_time}}</div>
+                            <div style="padding-top:8px;font-size:14px;line-height:1.6;color:#4d5a67;">Severity {{severity}}</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 28px 16px;">
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#fcfdfd;border:1px solid #edf0f4;border-radius:18px;">
+                        <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f4;color:#607080;">Current status</td><td align="right" style="padding:16px 18px;border-bottom:1px solid #edf0f4;color:#17202a;font-weight:700;">{{monitor_status}}</td></tr>
+                        <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f4;color:#607080;">Response time</td><td align="right" style="padding:16px 18px;border-bottom:1px solid #edf0f4;color:#17202a;font-weight:700;">{{response_time}}</td></tr>
+                        <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f4;color:#607080;">24h uptime</td><td align="right" style="padding:16px 18px;border-bottom:1px solid #edf0f4;color:#17202a;font-weight:700;">{{uptime_24h}}</td></tr>
+                        <tr><td style="padding:16px 18px;border-bottom:1px solid #edf0f4;color:#607080;">7d uptime</td><td align="right" style="padding:16px 18px;border-bottom:1px solid #edf0f4;color:#17202a;font-weight:700;">{{uptime_7d}}</td></tr>
+                        <tr><td style="padding:16px 18px;color:#607080;">30d uptime</td><td align="right" style="padding:16px 18px;color:#17202a;font-weight:700;">{{uptime_30d}}</td></tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 28px 16px;">
+                      <a href="{{cta_url}}" style="display:inline-block;background:{{accent_color}};color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:999px;font-size:14px;font-weight:700;">{{cta_label}}</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 28px 28px;font-size:13px;line-height:1.7;color:#6b7785;">
+                      {{footer_note}}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import nodemailer from 'nodemailer';
 
+import { buildAlertEmail } from './email-template.js';
 import type { NotificationChannel, Alert, Monitor } from './types.js';
 
 // Alert Delivery Service
@@ -113,25 +115,45 @@ async function dispatchEmail(
   monitor: Monitor,
 ): Promise<void> {
   const config = channel.config as { recipients: string[] };
-  
+
   if (!config.recipients?.length) {
     console.warn('[AlertDelivery] Email channel has no recipients');
     return;
   }
 
-  // For now, log the email dispatch
-  // In production, integrate with your email service (SendGrid, AWS SES, etc.)
-  console.log(`[AlertDelivery] Sending email to ${config.recipients.join(', ')}`);
-  console.log(`  Subject: [StatusVault] ${alert.message}`);
-  console.log(`  Alert Type: ${alert.type}`);
-  console.log(`  Monitor: ${monitor.name} (${monitor.url})`);
-  
-  // TODO: Implement actual email sending via your email provider
-  // await emailService.send({
-  //   to: config.recipients,
-  //   subject: `[StatusVault] ${alert.message}`,
-  //   html: generateEmailTemplate(alert, monitor),
-  // });
+  const transporter = getEmailTransport();
+
+  if (!transporter) {
+    console.warn(
+      '[AlertDelivery] SMTP configuration missing; skipping email delivery',
+    );
+    return;
+  }
+
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
+
+  if (!fromEmail) {
+    console.warn(
+      '[AlertDelivery] SMTP_FROM_EMAIL or SMTP_USER must be set for email delivery',
+    );
+    return;
+  }
+
+  const fromName = process.env.SMTP_FROM_NAME || 'Uptime by Flinkeo';
+  const { attachments, subject, html, text } = buildAlertEmail(alert, monitor);
+
+  await transporter.sendMail({
+    attachments,
+    from: `${fromName} <${fromEmail}>`,
+    to: config.recipients.join(', '),
+    subject,
+    text,
+    html,
+  });
+
+  console.log(
+    `[AlertDelivery] Email notification sent to ${config.recipients.join(', ')}`,
+  );
 }
 
 async function dispatchSlack(
@@ -249,4 +271,50 @@ async function dispatchWebhook(
     console.error('[AlertDelivery] Webhook dispatch failed:', err);
     throw err;
   }
+}
+
+let cachedTransporter: nodemailer.Transporter | undefined;
+
+function getEmailTransport(): nodemailer.Transporter | undefined {
+  if (cachedTransporter) {
+    return cachedTransporter;
+  }
+
+  const host = process.env.SMTP_HOST;
+  const portValue = process.env.SMTP_PORT;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !portValue || !user || !pass) {
+    return undefined;
+  }
+
+  const port = Number(portValue);
+
+  if (Number.isNaN(port)) {
+    console.warn(
+      `[AlertDelivery] Invalid SMTP_PORT value "${portValue}"; skipping email delivery`,
+    );
+    return undefined;
+  }
+
+  cachedTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: getSmtpSecure(port),
+    auth: {
+      user,
+      pass,
+    },
+  });
+
+  return cachedTransporter;
+}
+
+function getSmtpSecure(port: number): boolean {
+  if (process.env.SMTP_SECURE !== undefined) {
+    return process.env.SMTP_SECURE === 'true';
+  }
+
+  return port === 465;
 }
