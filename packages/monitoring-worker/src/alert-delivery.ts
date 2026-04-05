@@ -123,9 +123,9 @@ async function dispatchEmail(
     return;
   }
 
-  const transporter = getEmailTransport();
+  const transport = getEmailTransport();
 
-  if (!transporter) {
+  if (!transport) {
     console.warn(
       '[AlertDelivery] SMTP configuration missing; skipping email delivery',
     );
@@ -143,15 +143,16 @@ async function dispatchEmail(
 
   const fromName = process.env.SMTP_FROM_NAME || 'Uptime by Flinkeo';
   const { attachments, subject, html, text } = buildAlertEmail(alert, monitor);
-
-  await transporter.sendMail({
+  const message = {
     attachments,
     from: `${fromName} <${fromEmail}>`,
     to: config.recipients.join(', '),
     subject,
     text,
     html,
-  });
+  };
+
+  await sendEmailWithFallback(transport, message);
 
   console.log(
     `[AlertDelivery] Email notification sent to ${config.recipients.join(', ')}`,
@@ -275,13 +276,67 @@ async function dispatchWebhook(
   }
 }
 
-let cachedTransporter: nodemailer.Transporter | undefined;
+let cachedTransport: { authMethod?: 'LOGIN' | 'PLAIN'; transporter: nodemailer.Transporter } | undefined;
 
 function getEmailTransport(): nodemailer.Transporter | undefined {
-  if (cachedTransporter) {
-    return cachedTransporter;
+  if (cachedTransport) {
+    return cachedTransport.transporter;
   }
 
+  const config = getSmtpConfig();
+
+  if (!config) {
+    return undefined;
+  }
+
+  cachedTransport = {
+    authMethod: config.authMethod,
+    transporter: createEmailTransport(config),
+  };
+
+  return cachedTransport.transporter;
+}
+
+async function sendEmailWithFallback(
+  transporter: nodemailer.Transporter,
+  message: nodemailer.SendMailOptions,
+): Promise<void> {
+  try {
+    await transporter.sendMail(message);
+  } catch (error) {
+    if (!shouldRetryWithLogin(error)) {
+      throw error;
+    }
+
+    const fallbackConfig = getSmtpConfig('LOGIN');
+
+    if (!fallbackConfig) {
+      throw error;
+    }
+
+    console.warn(
+      '[AlertDelivery] SMTP AUTH PLAIN was rejected; retrying email delivery with AUTH LOGIN',
+    );
+
+    const fallbackTransporter = createEmailTransport(fallbackConfig);
+    await fallbackTransporter.sendMail(message);
+    cachedTransport = {
+      authMethod: 'LOGIN',
+      transporter: fallbackTransporter,
+    };
+  }
+}
+
+function getSmtpConfig(
+  authMethodOverride?: 'LOGIN' | 'PLAIN',
+): {
+  authMethod?: 'LOGIN' | 'PLAIN';
+  host: string;
+  pass: string;
+  port: number;
+  secure: boolean;
+  user: string;
+} | undefined {
   const host = process.env.SMTP_HOST;
   const portValue = process.env.SMTP_PORT;
   const user = process.env.SMTP_USER;
@@ -300,17 +355,44 @@ function getEmailTransport(): nodemailer.Transporter | undefined {
     return undefined;
   }
 
-  cachedTransporter = nodemailer.createTransport({
+  return {
+    authMethod: authMethodOverride ?? getSmtpAuthMethod(),
     host,
+    pass,
     port,
     secure: getSmtpSecure(port),
+    user,
+  };
+}
+
+function createEmailTransport(config: {
+  authMethod?: 'LOGIN' | 'PLAIN';
+  host: string;
+  pass: string;
+  port: number;
+  secure: boolean;
+  user: string;
+}): nodemailer.Transporter {
+  return nodemailer.createTransport({
+    authMethod: config.authMethod,
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
     auth: {
-      user,
-      pass,
+      user: config.user,
+      pass: config.pass,
     },
   });
+}
 
-  return cachedTransporter;
+function getSmtpAuthMethod(): 'LOGIN' | 'PLAIN' | undefined {
+  const authMethod = process.env.SMTP_AUTH_METHOD?.toUpperCase();
+
+  if (authMethod === 'LOGIN' || authMethod === 'PLAIN') {
+    return authMethod;
+  }
+
+  return undefined;
 }
 
 function getSmtpSecure(port: number): boolean {
@@ -319,6 +401,16 @@ function getSmtpSecure(port: number): boolean {
   }
 
   return port === 465;
+}
+
+function shouldRetryWithLogin(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    'command' in error &&
+    (error as Error & { code?: string }).code === 'EAUTH' &&
+    (error as Error & { command?: string }).command === 'AUTH PLAIN'
+  );
 }
 
 function normalizeAlert(alert: Alert): Alert {
